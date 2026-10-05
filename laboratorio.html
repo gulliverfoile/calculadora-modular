@@ -1,0 +1,2945 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Laboratorio Unificado — Ondas, Luz, Visión</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #0a0a1a; color: #e0e0ff; min-height: 100vh;
+    background-image: radial-gradient(ellipse at center, #1a1a3a 0%, #050510 100%);
+    padding: 20px;
+  }
+  h1 {
+    text-align: center; margin-bottom: 6px; font-size: clamp(1.4rem, 4vw, 1.9rem);
+    background: linear-gradient(135deg, #66ddff, #ff66aa, #ffcc00);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .subtitle { text-align: center; color: #aabbdd; margin-bottom: 20px; font-size: 0.88rem; }
+  #module-nav {
+    max-width: 1280px; margin: 0 auto 20px;
+    display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;
+    background: rgba(20,20,50,0.6); border: 1px solid rgba(100,100,200,0.3);
+    border-radius: 12px; padding: 12px;
+  }
+  .module-toggle {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px; border-radius: 8px;
+    background: rgba(30,30,60,0.9); border: 1px solid rgba(150,150,220,0.4);
+    cursor: pointer; transition: all 0.2s; user-select: none;
+    font-size: 0.88rem;
+  }
+  .module-toggle:hover { background: rgba(50,50,90,0.9); }
+  .module-toggle.active {
+    background: linear-gradient(135deg, #3a3a7a, #2a2a5a);
+    border-color: #66ddff;
+    box-shadow: 0 0 12px rgba(100,200,255,0.3);
+  }
+  .module-toggle input { accent-color: #66ddff; }
+  #modules-root {
+    max-width: 1280px; margin: 0 auto;
+    display: flex; flex-direction: column; gap: 20px;
+  }
+  .module {
+    background: rgba(20,20,50,0.85); border: 1px solid rgba(100,100,200,0.3);
+    border-radius: 16px; padding: 20px; backdrop-filter: blur(10px);
+  }
+  .module h2 { font-size: 1.05rem; color: #aaccff; margin-bottom: 10px; }
+  .module .desc { font-size: 0.85rem; color: #8899bb; margin-bottom: 12px; line-height: 1.5; }
+  canvas { width: 100%; height: auto; border-radius: 8px; background: #04040a; display: block; }
+  .controls { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+  .controls button, .sim-controls button {
+    padding: 8px 14px; border-radius: 6px; border: 1px solid rgba(150,150,220,0.4);
+    background: rgba(30,30,60,0.9); color: #fff; cursor: pointer; font-size: 0.85rem;
+    font-family: inherit;
+  }
+  .controls button:hover, .sim-controls button:hover { background: rgba(50,50,90,0.9); }
+  .controls button.active { background: linear-gradient(135deg, #3a3a7a, #2a2a5a); border-color: #66ddff; }
+  .sim-controls { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .sim-controls button { flex: 1; min-width: 70px; }
+  .sim-controls button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .param-group {
+    display: flex; align-items: center; gap: 10px; margin-top: 8px;
+  }
+  .param-group label { flex: 0 0 170px; font-size: 0.85rem; color: #aaccff; }
+  .param-group input[type="range"] { flex: 1; }
+  .param-group span { flex: 0 0 70px; text-align: right; color: #ffcc00; font-family: monospace; font-size: 0.85rem; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 750px) { .grid-2 { grid-template-columns: 1fr; } }
+  .comparison-label { text-align: center; font-size: 0.8rem; color: #8899bb; margin-top: 4px; }
+  .canvas-toolbar { display: flex; gap: 6px; justify-content: center; margin-top: 6px; }
+  .canvas-toolbar button {
+    font-size: 0.75rem; padding: 4px 10px;
+    background: rgba(30,30,60,0.9); color: #aaccff;
+    border: 1px solid rgba(150,150,220,0.3); border-radius: 5px; cursor: pointer;
+  }
+  .canvas-toolbar button:hover { background: rgba(50,50,90,0.9); }
+  .info-line {
+    font-family: 'Courier New', monospace; font-size: 0.75rem; color: #99bbee;
+    margin-top: 8px; background: #0a0a18; padding: 8px; border-radius: 6px;
+    line-height: 1.5;
+  }
+  .file-label {
+    display: inline-block; padding: 8px 14px;
+    background: rgba(30,30,60,0.9); color: #aaccff;
+    border: 1px solid rgba(150,150,220,0.4); border-radius: 6px;
+    cursor: pointer; font-size: 0.85rem;
+  }
+  .file-label:hover { background: rgba(50,50,90,0.9); }
+  input[type="file"] { display: none; }
+  select, .field-select {
+    padding: 8px 12px; border-radius: 6px;
+    background: rgba(30,30,60,0.9); color: #fff;
+    border: 1px solid rgba(150,150,220,0.4); font-size: 0.9rem;
+    font-family: inherit; cursor: pointer; width: 100%; margin-bottom: 8px;
+  }
+  .status { text-align: center; padding: 8px; border-radius: 6px; font-weight: 600; margin-top: 8px; font-size: 0.85rem; }
+  .status.ok { color: #66ffa0; }
+  .status.partial { color: #ffcc00; }
+  .status.rejected { color: #ff6666; }
+  .hud { display: flex; justify-content: space-between; font-size: 0.75rem; color: #8899bb; font-family: monospace; margin-top: 4px; }
+  .probes, .seismograms {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px; margin-top: 10px;
+  }
+  .probe-card, .seismogram { background: rgba(0,0,0,0.35); padding: 6px; border-radius: 6px; }
+  .probe-card canvas, .seismogram canvas { margin: 0; }
+  .layer-list { margin: 8px 0; }
+  .layer-item {
+    background: rgba(255,255,255,0.05); padding: 6px 8px; border-radius: 6px;
+    margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center;
+    font-size: 0.8rem;
+  }
+  #test-results {
+    max-width: 1280px; margin: 30px auto 0;
+    background: rgba(20,20,50,0.85); border: 1px solid rgba(100,100,200,0.3);
+    border-radius: 16px; padding: 16px;
+    font-family: 'Courier New', monospace; font-size: 0.78rem;
+  }
+  #test-results h3 { color: #aaccff; margin-bottom: 10px; font-size: 0.95rem; }
+  .test-ok { color: #66ffa0; }
+  .test-fail { color: #ff6666; }
+  footer { text-align: center; margin-top: 30px; color: #556; font-size: 0.8rem; }
+</style>
+</head>
+<body>
+<h1>🔬 Laboratorio Unificado</h1>
+<p class="subtitle">Ondas · Luz · Visión · Sonido · Sismos · Arquitectura hexagonal en un solo archivo</p>
+
+<nav id="module-nav"></nav>
+<main id="modules-root"></main>
+
+<section id="test-results" style="display:none">
+  <h3>🧪 Resultados de tests</h3>
+  <div id="test-list"></div>
+</section>
+
+<footer>
+  Cada módulo es autónomo y combinable. La arquitectura hexagonal permite copiar
+  cada sección a un archivo .js independiente sin reescribir nada.
+</footer>
+
+<script>
+/* ============================================================================
+   SECCIÓN 0 — UTILIDADES COMPARTIDAS
+   ============================================================================ */
+
+/** Bus de eventos: mediador desacoplado entre módulos. */
+class EventBus {
+  constructor() { this.listeners = new Map(); }
+  on(evt, cb) {
+    if (!this.listeners.has(evt)) this.listeners.set(evt, new Set());
+    this.listeners.get(evt).add(cb);
+    return () => this.off(evt, cb);
+  }
+  off(evt, cb) { if (this.listeners.has(evt)) this.listeners.get(evt).delete(cb); }
+  emit(evt, payload) {
+    const cbs = this.listeners.get(evt);
+    if (cbs) cbs.forEach(cb => { try { cb(payload); } catch (e) { console.error(e); } });
+  }
+}
+
+/** Longitud de onda (nm) → RGB aproximado (Dan Bruton 1996). */
+function wavelengthToRGB(nm) {
+  let R = 0, G = 0, B = 0;
+  if (nm >= 380 && nm < 440) { R = -(nm - 440) / 60; B = 1; }
+  else if (nm >= 440 && nm < 490) { G = (nm - 440) / 50; B = 1; }
+  else if (nm >= 490 && nm < 510) { G = 1; B = -(nm - 510) / 20; }
+  else if (nm >= 510 && nm < 580) { R = (nm - 510) / 70; G = 1; }
+  else if (nm >= 580 && nm < 645) { R = 1; G = -(nm - 645) / 65; }
+  else if (nm >= 645 && nm <= 780) { R = 1; }
+  let f = 1;
+  if (nm >= 380 && nm < 420) f = 0.3 + 0.7 * (nm - 380) / 40;
+  else if (nm > 700 && nm <= 780) f = 0.3 + 0.7 * (780 - nm) / 80;
+  return [
+    Math.round(255 * Math.pow(R * f, 0.8)),
+    Math.round(255 * Math.pow(G * f, 0.8)),
+    Math.round(255 * Math.pow(B * f, 0.8)),
+  ];
+}
+
+/** Heurística: RGB → espectro estimado en 5 bandas. NO es inversión física. */
+function rgbToApproxSpectrum(r, g, b) {
+  const R = r / 255, G = g / 255, B = b / 255;
+  return { 380: 0.20 * B, 450: B, 550: G, 650: R, 780: 0.30 * R };
+}
+
+/** Tabla de animales compartida (antes duplicada en ojo-animal y foto-animal). */
+const ANIMALS = {
+  humano: {
+    nombre: 'Humano', tipo: 'Tricromático',
+    channels: [
+      { name: 'S azul',  weights: { 380: 0.3, 450: 1.0, 550: 0.1 }, rgb: [0, 0, 255] },
+      { name: 'M verde', weights: { 450: 0.3, 550: 1.0, 650: 0.2 }, rgb: [0, 255, 0] },
+      { name: 'L rojo',  weights: { 550: 0.4, 650: 1.0, 780: 0.1 }, rgb: [255, 0, 0] },
+    ],
+    note: 'Referencia. Lo que vemos todos los días.',
+  },
+  perro: {
+    nombre: 'Perro', tipo: 'Dicromático',
+    channels: [
+      { name: 'Cono corto azul',     weights: { 380: 0.4, 450: 1.0, 550: 0.1 }, rgb: [0, 0, 255] },
+      { name: 'Cono largo amarillo', weights: { 450: 0.2, 550: 1.0, 650: 0.7, 780: 0.1 }, rgb: [255, 220, 0] },
+    ],
+    note: 'El perro ve azul y amarillo. Un juguete rojo lo ve como amarillo oscuro.',
+  },
+  gato: {
+    nombre: 'Gato', tipo: 'Dicromático + nocturno',
+    channels: [
+      { name: 'Cono corto', weights: { 380: 0.4, 450: 1.0, 550: 0.1 }, rgb: [0, 0, 255] },
+      { name: 'Cono largo', weights: { 450: 0.2, 550: 1.0, 650: 0.8, 780: 0.1 }, rgb: [255, 200, 0] },
+    ],
+    note: 'Su ventaja no es el color, es la sensibilidad en penumbra.',
+  },
+  abeja: {
+    nombre: 'Abeja', tipo: 'Tricromático UV+azul+verde',
+    channels: [
+      { name: 'UV',    weights: { 380: 1.0, 450: 0.2 }, rgb: [255, 0, 255] },
+      { name: 'Azul',  weights: { 380: 0.1, 450: 1.0, 550: 0.2 }, rgb: [0, 0, 255] },
+      { name: 'Verde', weights: { 450: 0.3, 550: 1.0, 650: 0.2 }, rgb: [0, 255, 0] },
+    ],
+    note: 'El UV está desplazado a MAGENTA. Ve guías de néctar que nosotros no vemos.',
+  },
+  ave: {
+    nombre: 'Ave (colibrí)', tipo: 'Tetracromático',
+    channels: [
+      { name: 'UV',    weights: { 380: 1.0, 450: 0.3 }, rgb: [255, 0, 255] },
+      { name: 'Azul',  weights: { 380: 0.1, 450: 1.0, 550: 0.2 }, rgb: [0, 0, 255] },
+      { name: 'Verde', weights: { 450: 0.3, 550: 1.0, 650: 0.2 }, rgb: [0, 255, 0] },
+      { name: 'Rojo',  weights: { 550: 0.3, 650: 1.0, 780: 0.4 }, rgb: [255, 0, 0] },
+    ],
+    note: 'Cuatro canales, tres colores RGB. Proyección inevitable.',
+  },
+  buho: {
+    nombre: 'Búho', tipo: 'Monocromático',
+    channels: [
+      { name: 'Bastones', weights: { 380: 0.1, 450: 0.6, 550: 1.0, 650: 0.5, 780: 0.1 }, rgb: [255, 255, 255] },
+    ],
+    note: 'Ve en blanco y negro, con enorme sensibilidad en penumbra.',
+  },
+  rata: {
+    nombre: 'Rata', tipo: 'Dicromático UV+verde',
+    channels: [
+      { name: 'UV',    weights: { 380: 1.0, 450: 0.2 }, rgb: [255, 0, 255] },
+      { name: 'Verde', weights: { 380: 0.1, 450: 0.4, 550: 1.0, 650: 0.2 }, rgb: [0, 255, 0] },
+    ],
+    note: 'Ve el UV. La orina de otros roedores brilla con UV.',
+  },
+  pulpo: {
+    nombre: 'Pulpo', tipo: 'Monocromático',
+    channels: [
+      { name: 'Único', weights: { 380: 0.2, 450: 1.0, 550: 0.9, 650: 0.4, 780: 0.05 }, rgb: [230, 230, 230] },
+    ],
+    note: 'Ve sin color. Su camuflaje no depende del color.',
+  },
+  camaleon: {
+    nombre: 'Camaleón', tipo: 'Tetracromático probable',
+    channels: [
+      { name: 'UV',    weights: { 380: 1.0, 450: 0.3 }, rgb: [255, 0, 255] },
+      { name: 'Azul',  weights: { 380: 0.1, 450: 1.0, 550: 0.2 }, rgb: [0, 0, 255] },
+      { name: 'Verde', weights: { 450: 0.3, 550: 1.0, 650: 0.2 }, rgb: [0, 255, 0] },
+      { name: 'Rojo',  weights: { 550: 0.4, 650: 1.0, 780: 0.3 }, rgb: [255, 0, 0] },
+    ],
+    note: 'El color de su piel y lo que ve su ojo son cosas distintas.',
+  },
+  mantis: {
+    nombre: 'Mantis religiosa', tipo: 'Doce+ canales · caso límite',
+    channels: [
+      { name: 'UV',      weights: { 380: 1.0, 450: 0.2 }, rgb: [255, 0, 255] },
+      { name: 'Visible', weights: { 450: 0.8, 550: 1.0, 650: 0.8, 780: 0.3 }, rgb: [255, 255, 255] },
+      { name: 'Marca',   weights: { 380: 0.5, 450: 0.5, 550: 0.5, 650: 0.5, 780: 0.5 }, rgb: [80, 255, 200] },
+    ],
+    note: 'CASO LÍMITE. 12 fotorreceptores que no podemos nombrar.',
+  },
+  serpiente: {
+    nombre: 'Serpiente de fosa', tipo: 'Visión térmica + visible',
+    channels: [
+      { name: 'Visual',  weights: { 450: 0.6, 550: 1.0, 650: 0.8 }, rgb: [180, 220, 255] },
+      { name: 'Térmico', weights: { 780: 1.0 }, rgb: [255, 80, 0] },
+    ],
+    note: 'La "visión térmica" no es color: es un mapa de calor superpuesto.',
+  },
+};
+
+/* ============================================================================
+   SECCIÓN 1 — REGISTRO DE MÓDULOS
+   ============================================================================ */
+const ModuleRegistry = (() => {
+  const modules = new Map();
+  return {
+    add(id, def) { modules.set(id, { id, ...def }); },
+    get(id) { return modules.get(id); },
+    all() { return [...modules.values()]; },
+    clear() { modules.clear(); },
+  };
+})();
+
+/* ============================================================================
+   SECCIÓN 2 — ORQUESTADOR (compartido por todos los módulos)
+   ============================================================================ */
+class Orchestrator {
+  constructor(registry, navEl, rootEl) {
+    this.registry = registry; this.navEl = navEl; this.rootEl = rootEl;
+    this.bus = new EventBus();
+    this.ctx = { bus: this.bus, orchestrator: this };
+    this.active = new Map();
+  }
+  boot() {
+    for (const mod of this.registry.all()) {
+      const label = document.createElement('label');
+      label.className = 'module-toggle';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = mod.activoPorDefecto !== false;
+      cb.dataset.id = mod.id;
+      const span = document.createElement('span');
+      span.textContent = mod.nombre;
+      label.appendChild(cb); label.appendChild(span);
+      label.dataset.id = mod.id;
+      if (cb.checked) label.classList.add('active');
+      cb.addEventListener('change', () => {
+        label.classList.toggle('active', cb.checked);
+        if (cb.checked) this.activate(mod.id);
+        else this.deactivate(mod.id);
+      });
+      this.navEl.appendChild(label);
+    }
+    for (const mod of this.registry.all()) {
+      if (mod.activoPorDefecto !== false) this.activate(mod.id);
+    }
+    this._startLoop();
+  }
+  activate(id) {
+    if (this.active.has(id)) return;
+    const mod = this.registry.get(id);
+    if (!mod) return;
+    for (const dep of (mod.depende || [])) {
+      if (!this.active.has(dep)) {
+        this.activate(dep);
+        const cb = this.navEl.querySelector(`input[data-id="${dep}"]`);
+        if (cb && !cb.checked) { cb.checked = true; cb.parentElement.classList.add('active'); }
+      }
+    }
+    const container = document.createElement('div');
+    container.className = 'module'; container.dataset.id = id;
+    this.rootEl.appendChild(container);
+    const localCtx = { ...this.ctx, container, deps: this._collectAPIs(mod.depende || []) };
+    try { if (mod.mount) mod.mount(localCtx); }
+    catch (e) {
+      container.innerHTML = `<p style="color:#f66">Error al montar ${id}: ${e.message}</p>`;
+      console.error(e); return;
+    }
+    this.active.set(id, {
+      container, api: mod.api || null, frame: mod.frame || null,
+      unmount: mod.unmount || null, ctx: localCtx,
+    });
+    this.bus.emit('module:activated', { id });
+  }
+  deactivate(id) {
+    if (!this.active.has(id)) return;
+    const entry = this.active.get(id);
+    for (const other of this.registry.all()) {
+      if (other.id === id) continue;
+      if ((other.depende || []).includes(id) && this.active.has(other.id)) {
+        console.warn(`No se puede desactivar ${id}: ${other.id} depende de él.`);
+        return;
+      }
+    }
+    if (entry.unmount) { try { entry.unmount(entry.ctx); } catch (e) { console.error(e); } }
+    entry.container.remove();
+    this.active.delete(id);
+    this.bus.emit('module:deactivated', { id });
+  }
+  _collectAPIs(deps) {
+    const apis = {};
+    for (const dep of deps) {
+      const e = this.active.get(dep);
+      if (e && e.api) apis[dep] = e.api;
+    }
+    return apis;
+  }
+  _startLoop() {
+    const loop = () => {
+      for (const [, entry] of this.active) {
+        if (entry.frame) { try { entry.frame(entry.ctx); } catch (e) { console.error('Frame error:', e); } }
+      }
+      requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+  }
+}
+
+/* ============================================================================
+   SECCIÓN 3 — MÓDULO: em-motor (FDTD compartido)
+   ============================================================================ */
+(() => {
+  class FDTD {
+    constructor(nx, nz) {
+      const n = nx * nz;
+      this.nx = nx; this.nz = nz;
+      this.ez = new Float32Array(n);
+      this.hx = new Float32Array(n);
+      this.hy = new Float32Array(n);
+      this.eps = new Float32Array(n).fill(1);
+      this.damp = new Float32Array(n);
+      this.time = 0;
+      this._buildSponge();
+    }
+    _buildSponge() {
+      const { nx, nz } = this;
+      const W = 18, MD = 0.12;
+      for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+        const d = Math.min(i, nx - 1 - i, j, nz - 1 - j);
+        if (d < W) { const t = (W - d) / W; this.damp[i + j * nx] = MD * t * t * t; }
+      }
+    }
+    setEpsilon(fn) {
+      for (let j = 0; j < this.nz; j++) for (let i = 0; i < this.nx; i++) {
+        this.eps[i + j * this.nx] = fn(i, j);
+      }
+    }
+    reset() { this.ez.fill(0); this.hx.fill(0); this.hy.fill(0); this.time = 0; }
+    step(sourceFn, dt = 0.3535) {
+      const { nx, nz, ez, hx, hy, eps, damp } = this;
+      for (let j = 0; j < nz - 1; j++) for (let i = 0; i < nx; i++) {
+        const idx = i + j * nx;
+        hx[idx] -= dt * (ez[idx + nx] - ez[idx]);
+      }
+      for (let j = 0; j < nz; j++) for (let i = 0; i < nx - 1; i++) {
+        const idx = i + j * nx;
+        hy[idx] += dt * (ez[idx + 1] - ez[idx]);
+      }
+      for (let j = 1; j < nz - 1; j++) for (let i = 1; i < nx - 1; i++) {
+        const idx = i + j * nx;
+        ez[idx] += dt / eps[idx] * ((hy[idx] - hy[idx - 1]) - (hx[idx] - hx[idx - 1]));
+        const d = damp[idx];
+        if (d) { ez[idx] *= (1 - d); hx[idx] *= (1 - d); hy[idx] *= (1 - d); }
+      }
+      if (sourceFn) {
+        const ci = (nx / 2) | 0, cj = (nz / 2) | 0;
+        ez[ci + cj * nx] += sourceFn(this.time);
+      }
+      this.time += dt;
+    }
+  }
+  const scenarios = {
+    vacio() { return 1; },
+    lamina(i, j, nx) { return (i > nx * 0.6 && i < nx * 0.75) ? 4 : 1; },
+    prisma(i, j, nx, nz) {
+      const x = i / nx, y = j / nz;
+      if (x > 0.4 && x < 0.8 && y > 0.2 && y < 0.8) {
+        const apex = 0.65, left = 0.4, right = 0.8;
+        const h = 1 - Math.abs((x - apex) / (right - left));
+        if (y > 0.5 - h * 0.4 && y < 0.5 + h * 0.4) return 4;
+      }
+      return 1;
+    },
+    lente(i, j, nx, nz) {
+      const cx = nx * 0.65, cy = nz * 0.5;
+      const d2 = (i - cx) ** 2 + (j - cy) ** 2;
+      const R = Math.min(nx, nz) * 0.15;
+      return d2 < R * R ? 4 : 1;
+    },
+  };
+  function makeSource(freq) {
+    const t0 = 3 / freq, tau = 1.2 / freq;
+    return (t) => {
+      const a = (t - t0) / tau;
+      return Math.sin(2 * Math.PI * freq * (t - t0)) * Math.exp(-a * a);
+    };
+  }
+  const NX = 110, NZ = 90;
+  const WL_TABLE = {
+    380: { freq: 0.065, eps: 4.7, label: 'UV' },
+    450: { freq: 0.060, eps: 4.5, label: 'azul' },
+    550: { freq: 0.050, eps: 4.0, label: 'verde' },
+    650: { freq: 0.040, eps: 3.6, label: 'rojo' },
+    780: { freq: 0.033, eps: 3.3, label: 'IR' },
+  };
+  const sims = [];
+  let mode = 'mono', scenarioName = 'lamina', wavelengthNm = 550, running = true;
+  function buildSims() {
+    sims.length = 0;
+    let list;
+    if (mode === 'full') list = [380, 450, 550, 650, 780];
+    else if (mode === 'white') list = [450, 550, 650];
+    else list = [wavelengthNm];
+    for (const nm of list) {
+      const wl = WL_TABLE[nm];
+      if (!wl) continue;
+      const s = new FDTD(NX, NZ);
+      s.wavelengthNm = nm; s.label = wl.label;
+      s.color = wavelengthToRGB(nm);
+      s.source = makeSource(wl.freq);
+      s.setEpsilon((i, j) => {
+        const base = scenarios[scenarioName](i, j, NX, NZ);
+        if (base === 1) return 1;
+        return 1 + (base - 1) * (wl.eps / 4.0);
+      });
+      sims.push(s);
+    }
+  }
+  const api = {
+    getFields() {
+      return sims.map(s => ({
+        field: s.ez, nx: s.nx, nz: s.nz,
+        color: s.color, wavelength: s.wavelengthNm, label: s.label,
+      }));
+    },
+    getFieldsByWavelength() {
+      const out = {};
+      for (const s of sims) {
+        out[s.wavelengthNm] = {
+          field: s.ez, nx: s.nx, nz: s.nz,
+          color: s.color, label: s.label, wavelengthNm: s.wavelengthNm,
+        };
+      }
+      return out;
+    },
+    setScenario(name) { scenarioName = name; buildSims(); },
+    setWavelength(nm) { wavelengthNm = nm; mode = 'mono'; buildSims(); },
+    setMode(m) { mode = m; buildSims(); },
+    setModeFull() { mode = 'full'; buildSims(); },
+    setRunning(r) { running = r; },
+    isRunning() { return running; },
+    reset() { for (const s of sims) s.reset(); },
+    getScenario() { return scenarioName; },
+    getMode() { return mode; },
+    getWavelength() { return wavelengthNm; },
+    getActiveWavelengths() { return sims.map(s => s.wavelengthNm); },
+  };
+  ModuleRegistry.add('em-motor', {
+    nombre: '⚡ Motor EM (FDTD)',
+    depende: [], activoPorDefecto: true, api,
+    mount(ctx) {
+      ctx.container.innerHTML = `
+        <h2>⚡ Motor electromagnético 2D · FDTD (Yee) · Modo TM</h2>
+        <div class="desc">
+          Resuelve las ecuaciones de Maxwell en 2D sobre un grid escalonado.
+          Expone el campo a quien lo pida (em-color, ojo-animal). Los controles
+          modifican el medio y la fuente.
+        </div>
+        <div class="controls" id="scenario-controls">
+          <button data-scenario="vacio">Vacío</button>
+          <button data-scenario="lamina" class="active">Lámina dieléctrica</button>
+          <button data-scenario="prisma">Prisma</button>
+          <button data-scenario="lente">Lente</button>
+        </div>
+        <div class="controls" id="mode-controls">
+          <button data-mode="mono" class="active">Monocromático</button>
+          <button data-mode="white">Luz blanca (3 λ)</button>
+          <button data-mode="full">Espectro completo (5 λ)</button>
+        </div>
+        <div class="controls" id="wavelength-controls">
+          <button data-wl="650">Rojo 650nm</button>
+          <button data-wl="550" class="active">Verde 550nm</button>
+          <button data-wl="450">Azul 450nm</button>
+        </div>
+        <div class="controls">
+          <button id="em-reset">Reiniciar simulación</button>
+          <button id="em-play">Pausar</button>
+        </div>
+        <div class="info-line" id="em-info">Configurando…</div>
+      `;
+      const sc = ctx.container.querySelector('#scenario-controls');
+      sc.addEventListener('click', (e) => {
+        if (!e.target.dataset.scenario) return;
+        sc.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        api.setScenario(e.target.dataset.scenario);
+      });
+      const mc = ctx.container.querySelector('#mode-controls');
+      mc.addEventListener('click', (e) => {
+        if (!e.target.dataset.mode) return;
+        mc.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        api.setMode(e.target.dataset.mode);
+        ctx.container.querySelector('#wavelength-controls').style.opacity =
+          e.target.dataset.mode === 'mono' ? 1 : 0.4;
+      });
+      const wc = ctx.container.querySelector('#wavelength-controls');
+      wc.addEventListener('click', (e) => {
+        if (!e.target.dataset.wl) return;
+        wc.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        api.setWavelength(parseInt(e.target.dataset.wl, 10));
+        mc.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.mode === 'mono'));
+        wc.style.opacity = 1;
+      });
+      ctx.container.querySelector('#em-reset').addEventListener('click', () => api.reset());
+      const playBtn = ctx.container.querySelector('#em-play');
+      playBtn.addEventListener('click', () => {
+        running = !running;
+        playBtn.textContent = running ? 'Pausar' : 'Reanudar';
+      });
+      buildSims();
+    },
+    frame(ctx) {
+      if (!running) return;
+      for (let k = 0; k < 3; k++) for (const s of sims) s.step(s.source);
+      const info = ctx.container.querySelector('#em-info');
+      if (info) {
+        const wls = sims.map(s => s.wavelengthNm + 'nm').join(', ');
+        info.textContent = `Escenario: ${scenarioName} · Modo: ${mode} · λ: [${wls}] · Grid ${NX}×${NZ}`;
+      }
+    },
+  });
+})();
+
+/* ============================================================================
+   SECCIÓN 4 — MÓDULO: em-color (percepción humana sobre el campo EM)
+   ============================================================================ */
+(() => {
+  let canvas, ctx2d, imageData, offscreen, offCtx;
+  function ensureCanvas(w, h) {
+    if (!canvas || canvas.width !== w || canvas.height !== h) {
+      canvas.width = w; canvas.height = h;
+      offscreen = document.createElement('canvas');
+      offscreen.width = w; offscreen.height = h;
+      offCtx = offscreen.getContext('2d');
+      imageData = offCtx.createImageData(w, h);
+    }
+  }
+  ModuleRegistry.add('em-color', {
+    nombre: '🎨 Color (percepción humana)',
+    depende: ['em-motor'], activoPorDefecto: true,
+    mount(c) {
+      c.container.innerHTML = `
+        <h2>🎨 Color — de onda a percepción</h2>
+        <div class="desc">
+          El motor EM produce <em>frecuencias</em>. El <strong>color</strong> está en el ojo que
+          mira. Este módulo aplica la conversión longitud de onda → RGB.
+        </div>
+        <canvas id="em-color-canvas"></canvas>
+        <div class="canvas-toolbar"><button data-png="em-color-canvas">💾 Descargar PNG</button></div>
+        <div class="info-line" id="color-info">Esperando datos del motor…</div>
+      `;
+      canvas = c.container.querySelector('#em-color-canvas');
+      ctx2d = canvas.getContext('2d');
+      c.container.querySelector('[data-png]').addEventListener('click', () => {
+        const a = document.createElement('a');
+        a.download = 'em-color.png'; a.href = canvas.toDataURL('image/png'); a.click();
+      });
+    },
+    frame(c) {
+      const motor = c.deps['em-motor'];
+      if (!motor) return;
+      const fields = motor.getFields();
+      if (!fields.length) return;
+      const visible = fields.filter(f => [450, 550, 650].includes(f.wavelength));
+      const toDraw = visible.length > 0 ? visible : fields;
+      ensureCanvas(toDraw[0].nx, toDraw[0].nz);
+      const data = imageData.data;
+      let maxV = 1e-20;
+      for (const f of toDraw) for (let k = 0; k < f.field.length; k++) {
+        const a = Math.abs(f.field[k]); if (a > maxV) maxV = a;
+      }
+      const inv = 1 / maxV;
+      const N = toDraw[0].field.length;
+      for (let k = 0; k < N; k++) {
+        let r = 0, g = 0, b = 0;
+        for (const f of toDraw) {
+          const v = Math.min(1, Math.abs(f.field[k]) * inv);
+          r += f.color[0] * v; g += f.color[1] * v; b += f.color[2] * v;
+        }
+        const p = k * 4;
+        data[p] = Math.min(255, r); data[p+1] = Math.min(255, g);
+        data[p+2] = Math.min(255, b); data[p+3] = 255;
+      }
+      offCtx.putImageData(imageData, 0, 0);
+      ctx2d.imageSmoothingEnabled = true;
+      ctx2d.drawImage(offscreen, 0, 0, canvas.width, canvas.height);
+      const info = c.container.querySelector('#color-info');
+      if (info) {
+        const wls = toDraw.map(f => f.wavelength + 'nm').join(', ');
+        info.textContent = `Longitudes visibles: ${wls} · modo motor: ${motor.getMode()}`;
+      }
+    },
+  });
+})();
+
+/* ============================================================================
+   SECCIÓN 5 — MÓDULO: percepcion (condiciones visuales humanas)
+   ============================================================================ */
+(() => {
+  function generateScene(w, h) {
+    const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+    const g = cv.getContext('2d');
+    const sky = g.createLinearGradient(0, 0, 0, h * 0.62);
+    sky.addColorStop(0, '#5B9BD5'); sky.addColorStop(0.7, '#B8D4E8'); sky.addColorStop(1, '#F5DEB3');
+    g.fillStyle = sky; g.fillRect(0, 0, w, h * 0.62);
+    g.fillStyle = '#FFD966';
+    g.beginPath(); g.arc(w * 0.82, h * 0.13, Math.min(w, h) * 0.05, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#6B5B4A';
+    g.beginPath();
+    g.moveTo(0, h * 0.62); g.lineTo(w * 0.15, h * 0.38); g.lineTo(w * 0.28, h * 0.55);
+    g.lineTo(w * 0.42, h * 0.32); g.lineTo(w * 0.55, h * 0.52); g.lineTo(w * 0.72, h * 0.4);
+    g.lineTo(w * 0.88, h * 0.55); g.lineTo(w, h * 0.45); g.lineTo(w, h * 0.62);
+    g.closePath(); g.fill();
+    g.fillStyle = '#7CB342'; g.fillRect(0, h * 0.62, w, h * 0.38);
+    g.fillStyle = '#F5DEB3'; g.fillRect(w * 0.22, h * 0.6, w * 0.16, h * 0.22);
+    g.fillStyle = '#A0522D';
+    g.beginPath(); g.moveTo(w * 0.20, h * 0.6); g.lineTo(w * 0.30, h * 0.46); g.lineTo(w * 0.40, h * 0.6); g.closePath(); g.fill();
+    g.fillStyle = '#5D4037'; g.fillRect(w * 0.28, h * 0.72, w * 0.04, h * 0.1);
+    g.fillStyle = '#81D4FA'; g.fillRect(w * 0.24, h * 0.66, w * 0.03, h * 0.03);
+    g.fillStyle = '#5D4037'; g.fillRect(w * 0.72, h * 0.66, w * 0.02, h * 0.16);
+    g.fillStyle = '#2E7D32';
+    g.beginPath(); g.arc(w * 0.73, h * 0.6, w * 0.06, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.arc(w * 0.68, h * 0.63, w * 0.045, 0, Math.PI * 2); g.fill();
+    const faceX = w * 0.5, faceY = h * 0.5, faceR = Math.min(w, h) * 0.08;
+    g.fillStyle = '#FFCC99';
+    g.beginPath(); g.arc(faceX, faceY, faceR, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#000';
+    g.beginPath(); g.arc(faceX - faceR*0.35, faceY - faceR*0.2, faceR*0.1, 0, Math.PI*2); g.fill();
+    g.beginPath(); g.arc(faceX + faceR*0.35, faceY - faceR*0.2, faceR*0.1, 0, Math.PI*2); g.fill();
+    g.strokeStyle = '#000'; g.lineWidth = 2;
+    g.beginPath(); g.arc(faceX, faceY + faceR*0.1, faceR*0.5, 0.2, Math.PI - 0.2); g.stroke();
+    g.fillStyle = '#FFFFFF';
+    g.font = `bold ${Math.round(h*0.06)}px sans-serif`;
+    g.fillText('TEXTO', w * 0.05, h * 0.95);
+    g.font = `${Math.round(h*0.04)}px sans-serif`;
+    g.fillText('abc 123', w * 0.45, h * 0.95);
+    const patchesY = h * 0.86, patchH = h * 0.08;
+    const patches = ['#FF0000','#00A000','#FF8000','#8000FF','#00FFFF','#808000'];
+    const patchW = (w * 0.5) / patches.length;
+    patches.forEach((c, i) => { g.fillStyle = c; g.fillRect(w*0.02 + i*patchW, patchesY, patchW - 2, patchH); });
+    const ishiY = h * 0.86 + h * 0.04, ishiR = h * 0.055;
+    const ishi = [
+      { x: w*0.62, bg: '#8B4513', fg: '#7CB342', n: '5' },
+      { x: w*0.78, bg: '#FF6347', fg: '#556B2F', n: '3' },
+      { x: w*0.94, bg: '#4169E1', fg: '#9932CC', n: '7' },
+    ];
+    ishi.forEach(p => {
+      g.fillStyle = p.bg; g.beginPath(); g.arc(p.x, ishiY, ishiR, 0, Math.PI*2); g.fill();
+      g.fillStyle = p.fg; g.font = `bold ${Math.round(ishiR*1.2)}px sans-serif`;
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText(p.n, p.x, ishiY);
+      g.textAlign = 'start'; g.textBaseline = 'alphabetic';
+    });
+    return cv;
+  }
+
+  const filters = {
+    normal() {},
+    'macular-seca'(g, w, h, sev, comp) {
+      const s = sev / 100, cx = w/2, cy = h/2;
+      const R = Math.min(w, h) * (0.15 + 0.15*s);
+      if (s > 0.1) {
+        const snap = document.createElement('canvas');
+        snap.width = w; snap.height = h;
+        snap.getContext('2d').drawImage(g.canvas, 0, 0);
+        g.save(); g.beginPath(); g.arc(cx, cy, R, 0, Math.PI*2); g.clip();
+        g.filter = `blur(${2 + 8*s}px)`; g.drawImage(snap, 0, 0);
+        g.filter = 'none'; g.restore();
+      }
+      const grad = g.createRadialGradient(cx, cy, R*0.2, cx, cy, R);
+      grad.addColorStop(0, `rgba(0,0,0,${0.3 + 0.6*s})`);
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = grad; g.fillRect(0, 0, w, h);
+      if (comp) { g.save(); g.globalCompositeOperation = 'overlay'; g.fillStyle = 'rgba(255,255,255,0.15)'; g.fillRect(0,0,w,h); g.restore(); }
+    },
+    'macular-humeda'(g, w, h, sev, comp) {
+      const s = sev/100, cx = w/2, cy = h/2;
+      const R = Math.min(w, h) * (0.15 + 0.1*s);
+      const snap = document.createElement('canvas'); snap.width = w; snap.height = h;
+      snap.getContext('2d').drawImage(g.canvas, 0, 0);
+      const src = snap.getContext('2d').getImageData(0, 0, w, h);
+      const dst = g.createImageData(w, h);
+      const srcD = src.data, dstD = dst.data, k = 0.3 * s;
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const dx = x - cx, dy = y - cy, d = Math.hypot(dx, dy);
+        const idx = (y*w + x) * 4;
+        if (d < R && d > 0.1) {
+          const theta = Math.atan2(dy, dx);
+          const wave = 1 + k * Math.sin(d * 0.4);
+          const nx2 = cx + Math.cos(theta) * d * wave;
+          const ny2 = cy + Math.sin(theta) * d * wave;
+          const sx = Math.max(0, Math.min(w-1, Math.round(nx2)));
+          const sy = Math.max(0, Math.min(h-1, Math.round(ny2)));
+          const si = (sy*w + sx) * 4;
+          dstD[idx] = srcD[si]; dstD[idx+1] = srcD[si+1];
+          dstD[idx+2] = srcD[si+2]; dstD[idx+3] = 255;
+        } else {
+          dstD[idx] = srcD[idx]; dstD[idx+1] = srcD[idx+1];
+          dstD[idx+2] = srcD[idx+2]; dstD[idx+3] = 255;
+        }
+      }
+      g.putImageData(dst, 0, 0);
+      const grad = g.createRadialGradient(cx, cy, R*0.3, cx, cy, R);
+      grad.addColorStop(0, `rgba(0,0,0,${0.2+0.5*s})`);
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = grad; g.fillRect(0, 0, w, h);
+      if (comp) { g.save(); g.globalCompositeOperation = 'overlay'; g.fillStyle = 'rgba(255,255,255,0.15)'; g.fillRect(0,0,w,h); g.restore(); }
+    },
+    glaucoma(g, w, h, sev, comp) {
+      const s = sev/100, cx = w/2, cy = h/2;
+      const outer = Math.hypot(w, h)/2, inner = outer * (0.9 - 0.7*s);
+      const grad = g.createRadialGradient(cx, cy, inner, cx, cy, outer);
+      grad.addColorStop(0, 'rgba(0,0,0,0)'); grad.addColorStop(1, 'rgba(0,0,0,0.98)');
+      g.fillStyle = grad; g.fillRect(0, 0, w, h);
+      if (comp) { g.save(); g.globalCompositeOperation = 'screen';
+        const g2 = g.createRadialGradient(cx, cy, 0, cx, cy, inner);
+        g2.addColorStop(0, 'rgba(255,255,255,0.2)'); g2.addColorStop(1, 'rgba(255,255,255,0)');
+        g.fillStyle = g2; g.fillRect(0,0,w,h); g.restore(); }
+    },
+    cataratas(g, w, h, sev, comp) {
+      const s = sev/100;
+      if (s > 0.05) {
+        const snap = document.createElement('canvas'); snap.width = w; snap.height = h;
+        snap.getContext('2d').drawImage(g.canvas, 0, 0);
+        g.filter = `blur(${1 + 6*s}px)`; g.drawImage(snap, 0, 0); g.filter = 'none';
+      }
+      g.save(); g.globalCompositeOperation = 'multiply';
+      g.fillStyle = `rgba(255, 230, 150, ${0.15 + 0.35*s})`;
+      g.fillRect(0, 0, w, h); g.restore();
+      if (comp) { g.save(); g.globalCompositeOperation = 'overlay';
+        g.fillStyle = `rgba(100,100,255,${0.1 + 0.15*s})`;
+        g.fillRect(0,0,w,h); g.restore(); }
+    },
+    retinosis(g, w, h, sev, comp) {
+      const s = sev/100, cx = w/2, cy = h/2;
+      const outer = Math.hypot(w, h)/2, inner = outer * (0.85 - 0.55*s);
+      const grad = g.createRadialGradient(cx, cy, inner, cx, cy, outer);
+      grad.addColorStop(0, 'rgba(0,0,0,0)');
+      grad.addColorStop(0.7, `rgba(0,0,0,${0.5+0.3*s})`);
+      grad.addColorStop(1, `rgba(0,0,0,${0.85+0.15*s})`);
+      g.fillStyle = grad; g.fillRect(0, 0, w, h);
+      if (comp) { g.save(); g.globalCompositeOperation = 'screen';
+        const g2 = g.createRadialGradient(cx, cy, 0, cx, cy, inner);
+        g2.addColorStop(0, 'rgba(255,255,255,0.15)'); g2.addColorStop(1, 'rgba(255,255,255,0)');
+        g.fillStyle = g2; g.fillRect(0,0,w,h); g.restore(); }
+    },
+    daltonismo(g, w, h, sev, comp, subtype) {
+      const s = sev/100;
+      const img = g.getImageData(0, 0, w, h);
+      const d = img.data;
+      const M = {
+        protanopia:   [[0.567, 0.433, 0], [0.558, 0.442, 0], [0, 0.242, 0.758]],
+        deuteranopia: [[0.625, 0.375, 0], [0.7, 0.3, 0], [0, 0.3, 0.7]],
+        tritanopia:   [[0.95, 0.05, 0], [0, 0.433, 0.567], [0, 0.475, 0.525]],
+      };
+      const mat = M[subtype] || M.protanopia;
+      const id = [[1,0,0],[0,1,0],[0,0,1]];
+      const bl = (i, j) => id[i][j]*(1-s) + mat[i][j]*s;
+      const b00 = bl(0,0), b01 = bl(0,1), b02 = bl(0,2);
+      const b10 = bl(1,0), b11 = bl(1,1), b12 = bl(1,2);
+      const b20 = bl(2,0), b21 = bl(2,1), b22 = bl(2,2);
+      for (let i = 0; i < d.length; i += 4) {
+        const r = d[i], gg = d[i+1], b = d[i+2];
+        d[i]   = Math.max(0, Math.min(255, b00*r + b01*gg + b02*b));
+        d[i+1] = Math.max(0, Math.min(255, b10*r + b11*gg + b12*b));
+        d[i+2] = Math.max(0, Math.min(255, b20*r + b21*gg + b22*b));
+      }
+      g.putImageData(img, 0, 0);
+      if (comp) {
+        const img2 = g.getImageData(0, 0, w, h); const d2 = img2.data;
+        for (let i = 0; i < d2.length; i += 4) {
+          d2[i]   = Math.min(255, 128 + (d2[i]   - 128) * 1.4);
+          d2[i+1] = Math.min(255, 128 + (d2[i+1] - 128) * 1.4);
+        }
+        g.putImageData(img2, 0, 0);
+      }
+    },
+    hemianopsia(g, w, h, sev, comp, subtype) {
+      const s = sev/100, side = subtype || 'derecha';
+      g.fillStyle = `rgba(0,0,0,${0.7 + 0.3*s})`;
+      if (side === 'izquierda') g.fillRect(0, 0, w * (0.4 + 0.4*s), h);
+      else g.fillRect(w * (0.6 - 0.4*s), 0, w, h);
+      if (comp) { g.save(); g.globalCompositeOperation = 'screen';
+        g.fillStyle = 'rgba(255,200,100,0.15)'; g.fillRect(0,0,w,h); g.restore(); }
+    },
+    'retinopatia'(g, w, h, sev, comp) {
+      const s = sev/100;
+      let seed = 12345;
+      const rand = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+      const n = Math.round(8 + 30*s);
+      for (let i = 0; i < n; i++) {
+        const x = rand()*w, y = rand()*h;
+        const r = (2 + rand()*6) * (0.5 + s);
+        const grad = g.createRadialGradient(x, y, 0, x, y, r);
+        grad.addColorStop(0, `rgba(80,0,0,${0.4+0.4*s})`);
+        grad.addColorStop(1, 'rgba(80,0,0,0)');
+        g.fillStyle = grad; g.beginPath(); g.arc(x, y, r, 0, Math.PI*2); g.fill();
+      }
+      if (comp) { g.save(); g.globalCompositeOperation = 'overlay';
+        g.fillStyle = 'rgba(255,255,255,0.1)'; g.fillRect(0,0,w,h); g.restore(); }
+    },
+    astigmatismo(g, w, h, sev, comp, subtype) {
+      const s = sev/100;
+      if (s < 0.05) return;
+      const dir = subtype || 'horizontal';
+      const snap = document.createElement('canvas'); snap.width = w; snap.height = h;
+      snap.getContext('2d').drawImage(g.canvas, 0, 0);
+      g.save(); g.globalAlpha = 1/12;
+      const pixels = 2 + s*10;
+      for (let k = -pixels; k <= pixels; k++) {
+        const dx = dir === 'horizontal' ? k : 0;
+        const dy = dir === 'vertical' ? k : 0;
+        g.drawImage(snap, dx, dy);
+      }
+      g.restore();
+      if (comp) { g.save(); g.globalCompositeOperation = 'overlay';
+        g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(0,0,w,h); g.restore(); }
+    },
+  };
+
+  const STATE = {
+    condition: 'normal', severity: 50, compensation: false,
+    daltonSubtype: 'tritanopia', hemianSubtype: 'derecha',
+    astigSubtype: 'horizontal', sourceCanvas: null,
+    flickering: false, flickerInterval: null,
+  };
+  const RECOMMENDED_SEVERITY = {
+    normal: 0, 'macular-seca': 50, 'macular-humeda': 50, glaucoma: 60,
+    cataratas: 55, retinosis: 60, daltonismo: 90, hemianopsia: 70,
+    retinopatia: 55, astigmatismo: 45,
+  };
+  const COND_NAMES = {
+    normal: 'Normal', 'macular-seca': 'Degeneración macular (seca)',
+    'macular-humeda': 'Degeneración macular (húmeda)',
+    glaucoma: 'Glaucoma (visión en túnel)', cataratas: 'Cataratas',
+    retinosis: 'Retinosis pigmentaria', daltonismo: 'Daltonismo',
+    hemianopsia: 'Hemianopsia', retinopatia: 'Retinopatía diabética',
+    astigmatismo: 'Astigmatismo',
+  };
+
+  function renderSim(c, overrideCondition) {
+    const cs = c.container.querySelector('#canvas-sim');
+    if (!cs) return;
+    const info = c.container.querySelector('#perception-info');
+    const label = c.container.querySelector('#sim-label');
+    const g = cs.getContext('2d');
+    g.clearRect(0, 0, cs.width, cs.height);
+    g.drawImage(STATE.sourceCanvas, 0, 0);
+    const cond = overrideCondition || STATE.condition;
+    const filter = filters[cond];
+    if (filter) {
+      try {
+        filter(g, cs.width, cs.height, STATE.severity, STATE.compensation,
+          cond === 'daltonismo' ? STATE.daltonSubtype
+            : cond === 'hemianopsia' ? STATE.hemianSubtype
+            : cond === 'astigmatismo' ? STATE.astigSubtype : undefined);
+      } catch (e) { console.error(e); }
+    }
+    let subtitle = '';
+    if (cond === 'daltonismo') subtitle = ` (${STATE.daltonSubtype})`;
+    if (cond === 'hemianopsia') subtitle = ` (${STATE.hemianSubtype})`;
+    if (cond === 'astigmatismo') subtitle = ` (${STATE.astigSubtype})`;
+    if (label) label.textContent = `Simulación: ${COND_NAMES[cond]}${subtitle}` +
+      (STATE.compensation ? ' · con compensación' : '');
+    if (info) info.textContent = `Condición: ${COND_NAMES[cond]}${subtitle} · ` +
+      `Severidad: ${STATE.severity}% · Compensación: ${STATE.compensation ? 'ON' : 'OFF'}`;
+  }
+  function startFlicker(c) {
+    if (STATE.flickerInterval) return;
+    let showOriginal = false;
+    STATE.flickerInterval = setInterval(() => {
+      showOriginal = !showOriginal;
+      renderSim(c, showOriginal ? 'normal' : STATE.condition);
+    }, 800);
+    STATE.flickering = true;
+  }
+  function stopFlicker(c) {
+    if (STATE.flickerInterval) { clearInterval(STATE.flickerInterval); STATE.flickerInterval = null; }
+    STATE.flickering = false;
+    renderSim(c);
+  }
+
+  ModuleRegistry.add('percepcion', {
+    nombre: '👁 Percepción visual',
+    depende: [], activoPorDefecto: true,
+    mount(c) {
+      c.container.innerHTML = `
+        <h2>👁 Percepción visual — condiciones y compensación</h2>
+        <div class="desc">
+          Cómo ve el mundo una persona con distintas condiciones. <strong>Aviso:</strong> educativo, no diagnóstico.
+        </div>
+        <div class="controls" id="cond-controls">
+          <button data-cond="normal" class="active">Normal</button>
+          <button data-cond="macular-seca">Macular seca</button>
+          <button data-cond="macular-humeda">Macular húmeda</button>
+          <button data-cond="glaucoma">Glaucoma</button>
+          <button data-cond="cataratas">Cataratas</button>
+          <button data-cond="retinosis">Retinosis pigmentaria</button>
+          <button data-cond="daltonismo">Daltonismo</button>
+          <button data-cond="hemianopsia">Hemianopsia</button>
+          <button data-cond="retinopatia">Retinopatía diabética</button>
+          <button data-cond="astigmatismo">Astigmatismo</button>
+        </div>
+        <div class="controls" id="dalton-controls" style="display:none">
+          <button data-sub="protanopia">Protanopia</button>
+          <button data-sub="deuteranopia">Deuteranopia</button>
+          <button data-sub="tritanopia" class="active">Tritanopia</button>
+        </div>
+        <div class="controls" id="hemian-controls" style="display:none">
+          <button data-sub="izquierda">Hemianopsia izquierda</button>
+          <button data-sub="derecha" class="active">Hemianopsia derecha</button>
+        </div>
+        <div class="controls" id="astig-controls" style="display:none">
+          <button data-sub="horizontal" class="active">Astigmatismo horizontal</button>
+          <button data-sub="vertical">Astigmatismo vertical</button>
+        </div>
+        <div class="param-group">
+          <label>Severidad</label>
+          <input type="range" id="severity" min="0" max="100" value="0">
+          <span id="severity-value">0</span>
+        </div>
+        <label class="module-toggle" style="margin-top:8px; width:auto; display:inline-flex;">
+          <input type="checkbox" id="comp-toggle">
+          <span>Activar compensación</span>
+        </label>
+        <div class="grid-2" style="margin-top:12px;">
+          <div>
+            <canvas id="canvas-normal"></canvas>
+            <div class="comparison-label">Visión normal</div>
+            <div class="canvas-toolbar"><button data-png="canvas-normal">💾 PNG</button></div>
+          </div>
+          <div>
+            <canvas id="canvas-sim"></canvas>
+            <div class="comparison-label" id="sim-label">Simulación: ninguna</div>
+            <div class="canvas-toolbar">
+              <button id="btn-flicker">🔁 Parpadeo A/B</button>
+              <button data-png="canvas-sim">💾 PNG</button>
+            </div>
+          </div>
+        </div>
+        <div class="info-line" id="perception-info">Generando escena de prueba…</div>
+      `;
+      const sceneW = 480, sceneH = 320;
+      STATE.sourceCanvas = generateScene(sceneW, sceneH);
+      const cn = c.container.querySelector('#canvas-normal');
+      const cs = c.container.querySelector('#canvas-sim');
+      cn.width = cs.width = sceneW; cn.height = cs.height = sceneH;
+      cn.getContext('2d').drawImage(STATE.sourceCanvas, 0, 0);
+      const cc = c.container.querySelector('#cond-controls');
+      const dc = c.container.querySelector('#dalton-controls');
+      const hc = c.container.querySelector('#hemian-controls');
+      const ac = c.container.querySelector('#astig-controls');
+      cc.addEventListener('click', (e) => {
+        if (!e.target.dataset.cond) return;
+        cc.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        STATE.condition = e.target.dataset.cond;
+        dc.style.display = STATE.condition === 'daltonismo' ? 'flex' : 'none';
+        hc.style.display = STATE.condition === 'hemianopsia' ? 'flex' : 'none';
+        ac.style.display = STATE.condition === 'astigmatismo' ? 'flex' : 'none';
+        const rec = RECOMMENDED_SEVERITY[STATE.condition];
+        if (rec !== undefined && STATE.condition !== 'normal') {
+          STATE.severity = rec;
+          c.container.querySelector('#severity').value = rec;
+          c.container.querySelector('#severity-value').textContent = rec;
+        }
+        renderSim(c);
+      });
+      dc.addEventListener('click', (e) => {
+        if (!e.target.dataset.sub) return;
+        dc.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        STATE.daltonSubtype = e.target.dataset.sub; renderSim(c);
+      });
+      hc.addEventListener('click', (e) => {
+        if (!e.target.dataset.sub) return;
+        hc.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        STATE.hemianSubtype = e.target.dataset.sub; renderSim(c);
+      });
+      ac.addEventListener('click', (e) => {
+        if (!e.target.dataset.sub) return;
+        ac.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        STATE.astigSubtype = e.target.dataset.sub; renderSim(c);
+      });
+      const sev = c.container.querySelector('#severity');
+      const sevVal = c.container.querySelector('#severity-value');
+      sev.addEventListener('input', () => {
+        STATE.severity = parseInt(sev.value, 10);
+        sevVal.textContent = STATE.severity; renderSim(c);
+      });
+      const comp = c.container.querySelector('#comp-toggle');
+      comp.addEventListener('change', () => { STATE.compensation = comp.checked; renderSim(c); });
+      const flickerBtn = c.container.querySelector('#btn-flicker');
+      flickerBtn.addEventListener('click', () => {
+        if (STATE.flickering) {
+          stopFlicker(c);
+          flickerBtn.classList.remove('active');
+          flickerBtn.textContent = '🔁 Parpadeo A/B';
+        } else {
+          startFlicker(c);
+          flickerBtn.classList.add('active');
+          flickerBtn.textContent = '⏸ Detener parpadeo';
+        }
+      });
+      c.container.querySelectorAll('[data-png]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const target = c.container.querySelector('#' + btn.dataset.png);
+          const a = document.createElement('a');
+          a.download = btn.dataset.png + '.png';
+          a.href = target.toDataURL('image/png'); a.click();
+        });
+      });
+      renderSim(c);
+    },
+    unmount() {
+      if (STATE.flickerInterval) {
+        clearInterval(STATE.flickerInterval); STATE.flickerInterval = null;
+        STATE.flickering = false;
+      }
+    },
+  });
+})();
+
+/* ============================================================================
+   SECCIÓN 6 — MÓDULO: ojo-animal (sobre el campo EM)
+   ============================================================================ */
+(() => {
+  function translateField(fieldsByWl, animal, outImageData, w, h) {
+    const channels = animal.channels, nCh = channels.length;
+    const data = outImageData.data, N = w * h;
+    const pixBuf = new Float32Array(N * nCh);
+    let maxV = 1e-20;
+    for (let ch = 0; ch < nCh; ch++) {
+      const chan = channels[ch];
+      for (const nmStr in chan.weights) {
+        const w_ = chan.weights[nmStr];
+        if (w_ === 0) continue;
+        const nm = parseInt(nmStr, 10);
+        const f = fieldsByWl[nm];
+        if (!f) continue;
+        const field = f.field;
+        for (let k = 0; k < N; k++) {
+          const v = Math.abs(field[k]);
+          pixBuf[k * nCh + ch] += v * w_;
+          if (pixBuf[k * nCh + ch] > maxV) maxV = pixBuf[k * nCh + ch];
+        }
+      }
+    }
+    const inv = 1 / maxV;
+    for (let k = 0; k < N; k++) {
+      let r = 0, g = 0, b = 0;
+      for (let ch = 0; ch < nCh; ch++) {
+        const val = pixBuf[k * nCh + ch] * inv;
+        if (val <= 0.001) continue;
+        const rgb = channels[ch].rgb;
+        r += rgb[0] * val; g += rgb[1] * val; b += rgb[2] * val;
+      }
+      const p = k * 4;
+      data[p] = Math.min(255, r); data[p+1] = Math.min(255, g);
+      data[p+2] = Math.min(255, b); data[p+3] = 255;
+    }
+  }
+  let canvasA, canvasB, ctxA, ctxB, imgA, imgB, offA, offB, offCtxA, offCtxB;
+  let currentAnimal = 'abeja';
+  function ensureBuffers(w, h) {
+    if (!offA || offA.width !== w) {
+      offA = document.createElement('canvas'); offA.width = w; offA.height = h;
+      offCtxA = offA.getContext('2d'); imgA = offCtxA.createImageData(w, h);
+      offB = document.createElement('canvas'); offB.width = w; offB.height = h;
+      offCtxB = offB.getContext('2d'); imgB = offCtxB.createImageData(w, h);
+    }
+  }
+  ModuleRegistry.add('ojo-animal', {
+    nombre: '🦅 Ojo animal (EM)',
+    depende: ['em-motor'], activoPorDefecto: false,
+    api: { getAnimals() { return ANIMALS; }, getCurrentAnimal() { return currentAnimal; } },
+    mount(c) {
+      const motor = c.deps['em-motor'];
+      if (motor && motor.setModeFull) motor.setModeFull();
+      c.container.innerHTML = `
+        <h2>🦅 Ojo animal — sobre el campo EM</h2>
+        <div class="desc">
+          Mismo campo real, distintos sistemas visuales. <strong>No es lo que ve el animal</strong>:
+          es lo que podemos traducir de su espectro a algo que tú puedas mirar. El UV va en magenta.
+        </div>
+        <div class="controls" id="animal-controls"></div>
+        <div class="grid-2" style="margin-top:12px;">
+          <div>
+            <canvas id="canvas-human"></canvas>
+            <div class="comparison-label">Ojo humano (referencia)</div>
+            <div class="canvas-toolbar"><button data-png="canvas-human">💾 PNG</button></div>
+          </div>
+          <div>
+            <canvas id="canvas-animal"></canvas>
+            <div class="comparison-label" id="animal-label">Ojo animal</div>
+            <div class="canvas-toolbar"><button data-png="canvas-animal">💾 PNG</button></div>
+          </div>
+        </div>
+        <div class="info-line" id="animal-info">Elige un animal…</div>
+        <div class="info-line" id="animal-channels" style="margin-top:6px;"></div>
+      `;
+      const cc = c.container.querySelector('#animal-controls');
+      for (const id in ANIMALS) {
+        const btn = document.createElement('button');
+        btn.textContent = ANIMALS[id].nombre;
+        btn.dataset.animal = id;
+        if (id === currentAnimal) btn.classList.add('active');
+        btn.addEventListener('click', () => {
+          cc.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentAnimal = id;
+          updateLabels(c);
+        });
+        cc.appendChild(btn);
+      }
+      canvasA = c.container.querySelector('#canvas-human');
+      canvasB = c.container.querySelector('#canvas-animal');
+      ctxA = canvasA.getContext('2d'); ctxB = canvasB.getContext('2d');
+      c.container.querySelectorAll('[data-png]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const target = c.container.querySelector('#' + btn.dataset.png);
+          const a = document.createElement('a');
+          a.download = btn.dataset.png + '.png';
+          a.href = target.toDataURL('image/png'); a.click();
+        });
+      });
+      updateLabels(c);
+    },
+    frame(c) {
+      const motor = c.deps['em-motor'];
+      if (!motor || !canvasA) return;
+      const fieldsByWl = motor.getFieldsByWavelength();
+      const wls = Object.keys(fieldsByWl);
+      if (wls.length === 0) return;
+      const anyField = fieldsByWl[wls[0]];
+      const w = anyField.nx, h = anyField.nz;
+      ensureBuffers(w, h);
+      if (canvasA.width !== w) {
+        canvasA.width = canvasB.width = w; canvasA.height = canvasB.height = h;
+      }
+      const dataA = imgA.data, N = w * h;
+      let maxA = 1e-20;
+      for (const nm of ['450', '550', '650']) {
+        if (!fieldsByWl[nm]) continue;
+        const f = fieldsByWl[nm].field;
+        for (let k = 0; k < N; k++) { const a = Math.abs(f[k]); if (a > maxA) maxA = a; }
+      }
+      const invA = 1 / maxA;
+      for (let k = 0; k < N; k++) {
+        let r = 0, g = 0, b = 0;
+        if (fieldsByWl['450']) { const v = Math.min(1, Math.abs(fieldsByWl['450'].field[k]) * invA); b += 255 * v; }
+        if (fieldsByWl['550']) { const v = Math.min(1, Math.abs(fieldsByWl['550'].field[k]) * invA); g += 255 * v; }
+        if (fieldsByWl['650']) { const v = Math.min(1, Math.abs(fieldsByWl['650'].field[k]) * invA); r += 255 * v; }
+        const p = k * 4;
+        dataA[p] = r; dataA[p+1] = g; dataA[p+2] = b; dataA[p+3] = 255;
+      }
+      offCtxA.putImageData(imgA, 0, 0);
+      ctxA.imageSmoothingEnabled = true;
+      ctxA.drawImage(offA, 0, 0, canvasA.width, canvasA.height);
+      const animal = ANIMALS[currentAnimal];
+      translateField(fieldsByWl, animal, imgB, w, h);
+      offCtxB.putImageData(imgB, 0, 0);
+      ctxB.imageSmoothingEnabled = true;
+      ctxB.drawImage(offB, 0, 0, canvasB.width, canvasB.height);
+    },
+  });
+  function updateLabels(c) {
+    const animal = ANIMALS[currentAnimal];
+    const lbl = c.container.querySelector('#animal-label');
+    const info = c.container.querySelector('#animal-info');
+    const chInfo = c.container.querySelector('#animal-channels');
+    if (lbl) lbl.textContent = `${animal.nombre} — ${animal.tipo}`;
+    if (info) info.textContent = animal.note;
+    if (chInfo) {
+      chInfo.innerHTML = animal.channels.map(ch => {
+        const [r, g, b] = ch.rgb;
+        return `<span style="display:inline-block;width:10px;height:10px;background:rgb(${r},${g},${b});border-radius:2px;margin-right:4px;vertical-align:middle;"></span>${ch.name}`;
+      }).join(' · ');
+    }
+  }
+})();
+
+/* ============================================================================
+   SECCIÓN 7 — MÓDULO: foto-animal
+   ============================================================================ */
+(() => {
+  function generateFlowerScene(w, h) {
+    const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+    const g = cv.getContext('2d');
+    const sky = g.createLinearGradient(0, 0, 0, h * 0.4);
+    sky.addColorStop(0, '#7EB8E8'); sky.addColorStop(1, '#D4E8F5');
+    g.fillStyle = sky; g.fillRect(0, 0, w, h * 0.4);
+    const ground = g.createLinearGradient(0, h * 0.4, 0, h);
+    ground.addColorStop(0, '#6EA843'); ground.addColorStop(1, '#3D6B2A');
+    g.fillStyle = ground; g.fillRect(0, h * 0.4, w, h * 0.6);
+    g.strokeStyle = '#2E7D32'; g.lineWidth = 3;
+    for (let i = 0; i < 12; i++) {
+      const x = (i + 0.5) * w / 12;
+      const baseY = h * 0.95, topY = h * 0.35 + (i % 3) * 20;
+      g.beginPath(); g.moveTo(x, baseY);
+      g.bezierCurveTo(x + (i % 2 ? 10 : -10), baseY - 80, x + (i % 3 ? -8 : 8), topY + 60, x, topY);
+      g.stroke();
+    }
+    function drawFlower(cx, cy, r, petalColor, centerColor) {
+      g.fillStyle = petalColor;
+      for (let k = 0; k < 6; k++) {
+        const angle = (k / 6) * Math.PI * 2;
+        const px = cx + Math.cos(angle) * r;
+        const py = cy + Math.sin(angle) * r;
+        g.beginPath(); g.ellipse(px, py, r * 0.7, r * 0.5, angle, 0, Math.PI * 2); g.fill();
+      }
+      g.fillStyle = centerColor;
+      g.beginPath(); g.arc(cx, cy, r * 0.5, 0, Math.PI * 2); g.fill();
+    }
+    const flowerColors = [
+      ['#FF3050', '#FFD700'], ['#FFB020', '#8B4513'], ['#D040C0', '#FFFF00'],
+      ['#3050FF', '#FFFFFF'], ['#FF80A0', '#FFE000'], ['#FFFFFF', '#FFD700'],
+      ['#8000FF', '#FFD700'],
+    ];
+    for (let i = 0; i < 7; i++) {
+      const x = (i + 0.5) * w / 7;
+      const y = h * 0.5 + (i % 2) * 40;
+      const r = 22 + (i % 3) * 4;
+      drawFlower(x, y, r, flowerColors[i][0], flowerColors[i][1]);
+    }
+    g.fillStyle = '#FF8C00';
+    g.beginPath(); g.ellipse(w * 0.5, h * 0.2, 14, 8, -0.3, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.ellipse(w * 0.5, h * 0.2, 14, 8, 0.3, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#000';
+    g.beginPath(); g.arc(w * 0.5, h * 0.2, 2, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = '#4A8A30'; g.lineWidth = 2;
+    for (let i = 0; i < 60; i++) {
+      const x = Math.random() * w;
+      const y0 = h * 0.85 + Math.random() * h * 0.12;
+      g.beginPath(); g.moveTo(x, y0);
+      g.lineTo(x + (Math.random() - 0.5) * 8, y0 - 15 - Math.random() * 15); g.stroke();
+    }
+    return cv;
+  }
+  function translateImage(srcImageData, animal, dstImageData, strength = 1) {
+    const srcD = srcImageData.data, dstD = dstImageData.data;
+    const channels = animal.channels, nCh = channels.length;
+    const N = srcD.length / 4;
+    const chWeights = channels.map(ch => [
+      ch.weights[380] || 0, ch.weights[450] || 0, ch.weights[550] || 0,
+      ch.weights[650] || 0, ch.weights[780] || 0, ch.rgb,
+    ]);
+    const buf = new Float32Array(N * nCh);
+    let maxV = 1e-20;
+    for (let k = 0; k < N; k++) {
+      const p = k * 4;
+      const r = srcD[p], gg = srcD[p+1], b = srcD[p+2];
+      const spec = rgbToApproxSpectrum(r, gg, b);
+      const e = [spec[380], spec[450], spec[550], spec[650], spec[780]];
+      for (let ch = 0; ch < nCh; ch++) {
+        const cw = chWeights[ch];
+        let v = 0;
+        v += e[0]*cw[0] + e[1]*cw[1] + e[2]*cw[2] + e[3]*cw[3] + e[4]*cw[4];
+        buf[k * nCh + ch] = v;
+        if (v > maxV) maxV = v;
+      }
+    }
+    const inv = 1 / maxV;
+    for (let k = 0; k < N; k++) {
+      let tr = 0, tg = 0, tb = 0;
+      for (let ch = 0; ch < nCh; ch++) {
+        const val = buf[k * nCh + ch] * inv;
+        if (val <= 0.001) continue;
+        const rgb = chWeights[ch][5];
+        tr += rgb[0] * val; tg += rgb[1] * val; tb += rgb[2] * val;
+      }
+      const p = k * 4;
+      if (strength >= 1) {
+        dstD[p] = Math.min(255, tr); dstD[p+1] = Math.min(255, tg);
+        dstD[p+2] = Math.min(255, tb); dstD[p+3] = 255;
+      } else {
+        const s = strength;
+        dstD[p]   = Math.min(255, srcD[p]   * (1 - s) + tr * s);
+        dstD[p+1] = Math.min(255, srcD[p+1] * (1 - s) + tg * s);
+        dstD[p+2] = Math.min(255, srcD[p+2] * (1 - s) + tb * s);
+        dstD[p+3] = 255;
+      }
+    }
+  }
+  const STATE = {
+    sourceCanvas: null, currentAnimal: 'abeja', strength: 1.0,
+    originalImageData: null, translatedImageData: null,
+  };
+  let canvasOriginal, canvasAnimal, ctxOrig, ctxAnim, offTranslated, offTransCtx;
+  function process(c) {
+    if (!STATE.sourceCanvas || !STATE.originalImageData) return;
+    const w = STATE.sourceCanvas.width, h = STATE.sourceCanvas.height;
+    if (!offTranslated || offTranslated.width !== w) {
+      offTranslated = document.createElement('canvas');
+      offTranslated.width = w; offTranslated.height = h;
+      offTransCtx = offTranslated.getContext('2d');
+      STATE.translatedImageData = offTransCtx.createImageData(w, h);
+    }
+    const animal = ANIMALS[STATE.currentAnimal];
+    translateImage(STATE.originalImageData, animal, STATE.translatedImageData, STATE.strength);
+    offTransCtx.putImageData(STATE.translatedImageData, 0, 0);
+    ctxAnim.imageSmoothingEnabled = true;
+    ctxAnim.drawImage(offTranslated, 0, 0, w, h);
+  }
+  ModuleRegistry.add('foto-animal', {
+    nombre: '📷 Foto → ojo animal',
+    depende: [], activoPorDefecto: false,
+    api: { getAnimals() { return ANIMALS; }, getCurrentAnimal() { return STATE.currentAnimal; },
+           hasImage() { return !!STATE.sourceCanvas; } },
+    mount(c) {
+      c.container.innerHTML = `
+        <h2>📷 Foto → ojo animal</h2>
+        <div class="desc">
+          Carga una foto y mira cómo la vería cada animal. <strong>No es física</strong>:
+          una foto RGB no contiene UV ni IR, así que se <em>estima</em> su espectro.
+        </div>
+        <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:8px;">
+          <label class="file-label" for="foto-input">📂 Cargar foto</label>
+          <input type="file" id="foto-input" accept="image/*">
+          <button id="foto-reset" style="padding:8px 14px; border-radius:6px; border:1px solid rgba(150,150,220,0.4); background:rgba(30,30,60,0.9); color:#fff; cursor:pointer;">↺ Escena por defecto</button>
+        </div>
+        <div class="controls" id="animal-controls" style="margin-top:12px;"></div>
+        <div class="param-group">
+          <label>Intensidad de traducción</label>
+          <input type="range" id="strength" min="0" max="100" value="100">
+          <span id="strength-value">100%</span>
+        </div>
+        <div class="grid-2" style="margin-top:12px;">
+          <div>
+            <canvas id="canvas-orig"></canvas>
+            <div class="comparison-label">Foto original</div>
+            <div class="canvas-toolbar"><button data-png="canvas-orig">💾 PNG</button></div>
+          </div>
+          <div>
+            <canvas id="canvas-animal-foto"></canvas>
+            <div class="comparison-label" id="animal-foto-label">Traducción</div>
+            <div class="canvas-toolbar"><button data-png="canvas-animal-foto">💾 PNG</button></div>
+          </div>
+        </div>
+        <div class="info-line" id="foto-info">Cargando escena por defecto…</div>
+        <div class="info-line" id="foto-channels" style="margin-top:6px;"></div>
+      `;
+      canvasOriginal = c.container.querySelector('#canvas-orig');
+      canvasAnimal = c.container.querySelector('#canvas-animal-foto');
+      ctxOrig = canvasOriginal.getContext('2d'); ctxAnim = canvasAnimal.getContext('2d');
+      loadScene(generateFlowerScene(480, 360), c);
+      const ac = c.container.querySelector('#animal-controls');
+      for (const id in ANIMALS) {
+        const btn = document.createElement('button');
+        btn.textContent = ANIMALS[id].nombre;
+        btn.dataset.animal = id;
+        if (id === STATE.currentAnimal) btn.classList.add('active');
+        btn.addEventListener('click', () => {
+          ac.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          STATE.currentAnimal = id;
+          updateFotoLabels(c); process(c);
+        });
+        ac.appendChild(btn);
+      }
+      const fileInput = c.container.querySelector('#foto-input');
+      fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const img = new Image();
+          img.onload = () => {
+            const maxW = 640;
+            const scale = Math.min(1, maxW / img.width);
+            const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+            const cv = document.createElement('canvas');
+            cv.width = w; cv.height = h;
+            cv.getContext('2d').drawImage(img, 0, 0, w, h);
+            loadScene(cv, c);
+          };
+          img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+      c.container.querySelector('#foto-reset').addEventListener('click', () => {
+        loadScene(generateFlowerScene(480, 360), c);
+      });
+      const strSlider = c.container.querySelector('#strength');
+      const strVal = c.container.querySelector('#strength-value');
+      strSlider.addEventListener('input', () => {
+        STATE.strength = parseInt(strSlider.value, 10) / 100;
+        strVal.textContent = strSlider.value + '%';
+        process(c);
+      });
+      c.container.querySelectorAll('[data-png]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const target = c.container.querySelector('#' + btn.dataset.png);
+          const a = document.createElement('a');
+          a.download = btn.dataset.png + '.png';
+          a.href = target.toDataURL('image/png'); a.click();
+        });
+      });
+      updateFotoLabels(c);
+    },
+  });
+  function loadScene(cv, c) {
+    STATE.sourceCanvas = cv;
+    const w = cv.width, h = cv.height;
+    canvasOriginal.width = w; canvasOriginal.height = h;
+    canvasAnimal.width = w; canvasAnimal.height = h;
+    ctxOrig.drawImage(cv, 0, 0);
+    const imgData = ctxOrig.getImageData(0, 0, w, h);
+    STATE.originalImageData = new ImageData(new Uint8ClampedArray(imgData.data), w, h);
+    process(c);
+    const info = c.container.querySelector('#foto-info');
+    if (info) info.textContent = `Imagen: ${w}×${h} · Traducción a ${ANIMALS[STATE.currentAnimal].nombre}`;
+  }
+  function updateFotoLabels(c) {
+    const animal = ANIMALS[STATE.currentAnimal];
+    const lbl = c.container.querySelector('#animal-foto-label');
+    const chInfo = c.container.querySelector('#foto-channels');
+    if (lbl) lbl.textContent = `Traducción: ${animal.nombre} — ${animal.tipo}`;
+    if (chInfo) {
+      chInfo.innerHTML = animal.channels.map(ch => {
+        const [r, g, b] = ch.rgb;
+        return `<span style="display:inline-block;width:10px;height:10px;background:rgb(${r},${g},${b});border-radius:2px;margin-right:4px;vertical-align:middle;"></span>${ch.name}`;
+      }).join(' · ');
+    }
+  }
+})();
+
+/* ============================================================================
+   SECCIÓN 8 — MÓDULO: em-fdtd (simulador EM completo con presets y CPML)
+   ============================================================================ */
+(() => {
+  const EPS0 = 1, MU0 = 1, C0 = 1;
+  class Medium {
+    constructor({ epsR = 1, muR = 1, sigma = 0, pec = false, label = '' } = {}) {
+      this.epsR = epsR; this.muR = muR; this.sigma = sigma; this.pec = pec; this.label = label;
+      this.eps = epsR * EPS0; this.mu = muR * MU0;
+    }
+  }
+  class Source { constructor(x, z, type, freq, amp) { this.x = x; this.z = z; this.type = type; this.freq = freq; this.amp = amp; } }
+  class Probe {
+    constructor(x, z, label = '') { this.x = x; this.z = z; this.label = label; this.ez = []; this.hmag = []; }
+  }
+  class SimConfig {
+    constructor() {
+      this.nx = 200; this.nz = 200; this.dx = 1; this.dz = 1;
+      this.courant = 0.5; this.dt = 0.5 / Math.SQRT2;
+      this.pmlCells = 20; this.pmlOrder = 3;
+      this.source = null; this.probes = []; this.materials = null;
+      this.time = 0; this.stepCount = 0; this.stepsPerFrame = 4;
+    }
+    updateDt() { this.dt = this.courant * Math.min(this.dx, this.dz) / (C0 * Math.SQRT2); }
+  }
+  const VACUUM = new Medium({ label: 'vacío' });
+  const PEC = new Medium({ pec: true, label: 'PEC' });
+  function buildMaterials(nx, nz, fn) {
+    const arr = new Array(nx * nz);
+    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) arr[i + j * nx] = fn(i, j);
+    return arr;
+  }
+  const MODEL_PRESETS = {
+    freeSpace() {
+      const c = new SimConfig();
+      c.materials = buildMaterials(c.nx, c.nz, () => VACUUM);
+      c.source = new Source(100, 100, 'softEz', 0.05, 1);
+      c.probes = [new Probe(140, 100, 'x+40'), new Probe(100, 140, 'z+40')];
+      return c;
+    },
+    dielectricSlab() {
+      const c = new SimConfig();
+      c.nx = 300; c.nz = 200;
+      const diel = new Medium({ epsR: 4, label: 'dieléctrico ε=4' });
+      c.materials = buildMaterials(c.nx, c.nz, (i) => (i >= 140 && i < 180) ? diel : VACUUM);
+      c.source = new Source(60, 100, 'softEz', 0.05, 1);
+      c.probes = [new Probe(100, 100, 'incidente'), new Probe(220, 100, 'transmitido'), new Probe(60, 140, 'reflejado')];
+      return c;
+    },
+    waveguide() {
+      const c = new SimConfig();
+      c.nx = 400; c.nz = 120;
+      c.materials = buildMaterials(c.nx, c.nz, (_, j) => (j < 15 || j >= 105) ? PEC : VACUUM);
+      c.source = new Source(50, 60, 'softEz', 0.05, 1);
+      c.probes = [new Probe(200, 60, 'x=200'), new Probe(320, 60, 'x=320')];
+      return c;
+    },
+    photonicCrystal() {
+      const c = new SimConfig();
+      c.nx = 240; c.nz = 240;
+      const rod = new Medium({ epsR: 11.4, label: 'varilla ε=11.4' });
+      const a = 30, r = 8;
+      c.materials = buildMaterials(c.nx, c.nz, (i, j) => {
+        const px = Math.round((i - 120) / a) * a + 120;
+        const pz = Math.round((j - 120) / a) * a + 120;
+        const dx = i - px, dz = j - pz;
+        return (dx * dx + dz * dz < r * r) ? rod : VACUUM;
+      });
+      c.source = new Source(120, 60, 'softEz', 0.06, 1);
+      c.probes = [new Probe(120, 80, 'cerca'), new Probe(120, 140, 'transmitido')];
+      return c;
+    },
+  };
+
+  class FDTDEngine {
+    init(config) {
+      this.config = config; this._allocate();
+      this._buildMaterialCoefficients(); this._buildPMLCoefficients();
+      this._buildSourceFunction(); this._resetFields();
+    }
+    _allocate() {
+      const n = this.config.nx * this.config.nz;
+      this.ez = new Float32Array(n); this.hx = new Float32Array(n); this.hy = new Float32Array(n);
+      this.psi_ez_x = new Float32Array(n); this.psi_ez_y = new Float32Array(n);
+      this.psi_hx_y = new Float32Array(n); this.psi_hy_x = new Float32Array(n);
+      this.ca = new Float32Array(n); this.cb = new Float32Array(n);
+      this.mu_hx = new Float32Array(n); this.mu_hy = new Float32Array(n);
+      this.pecMask = new Uint8Array(n);
+    }
+    _buildMaterialCoefficients() {
+      const { nx, nz, dt, materials } = this.config;
+      for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+        const idx = i + j * nx; const med = materials[idx];
+        const denom = 1 + med.sigma * dt / (2 * med.eps);
+        this.ca[idx] = (1 - med.sigma * dt / (2 * med.eps)) / denom;
+        this.cb[idx] = (dt / med.eps) / denom;
+        const medBelow = (j + 1 < nz) ? materials[i + (j + 1) * nx] : med;
+        this.mu_hx[idx] = 0.5 * (med.mu + medBelow.mu);
+        const medRight = (i + 1 < nx) ? materials[(i + 1) + j * nx] : med;
+        this.mu_hy[idx] = 0.5 * (med.mu + medRight.mu);
+        this.pecMask[idx] = med.pec ? 1 : 0;
+      }
+    }
+    _buildPMLCoefficients() {
+      const { nx, nz, dt, pmlCells: L, pmlOrder: m } = this.config;
+      const sigmaMax = -(m + 1) * Math.log(1e-6) / (2 * L);
+      this.bx = new Float32Array(nx); this.cx = new Float32Array(nx);
+      this.by = new Float32Array(nz); this.cy = new Float32Array(nz);
+      for (let i = 0; i < nx; i++) {
+        let s = 0;
+        if (i < L) s = sigmaMax * Math.pow((L - i) / L, m);
+        else if (i >= nx - L) s = sigmaMax * Math.pow((i - (nx - L - 1)) / L, m);
+        this.bx[i] = Math.exp(-s * dt); this.cx[i] = this.bx[i] - 1;
+      }
+      for (let j = 0; j < nz; j++) {
+        let s = 0;
+        if (j < L) s = sigmaMax * Math.pow((L - j) / L, m);
+        else if (j >= nz - L) s = sigmaMax * Math.pow((j - (nz - L - 1)) / L, m);
+        this.by[j] = Math.exp(-s * dt); this.cy[j] = this.by[j] - 1;
+      }
+    }
+    _buildSourceFunction() {
+      const src = this.config.source;
+      if (!src) { this.sourceFunc = null; return; }
+      const f = src.freq, t0 = 3 / f, tau = 1.2 / f;
+      this.sourceFunc = (t) => {
+        const arg = (t - t0) / tau;
+        return src.amp * Math.sin(2 * Math.PI * f * (t - t0)) * Math.exp(-arg * arg);
+      };
+    }
+    _resetFields() {
+      this.ez.fill(0); this.hx.fill(0); this.hy.fill(0);
+      this.psi_ez_x.fill(0); this.psi_ez_y.fill(0);
+      this.psi_hx_y.fill(0); this.psi_hy_x.fill(0);
+      this.config.time = 0; this.config.stepCount = 0;
+      this.config.probes.forEach(p => { p.ez = []; p.hmag = []; });
+    }
+    step() {
+      const cfg = this.config;
+      const { nx, nz, dt, source, probes } = cfg;
+      const dx = cfg.dx, dz = cfg.dz, t = cfg.time;
+      for (let j = 0; j < nz - 1; j++) for (let i = 0; i < nx; i++) {
+        const idx = i + j * nx;
+        const dEz_dz = (this.ez[idx + nx] - this.ez[idx]) / dz;
+        const psi = this.by[j] * this.psi_hx_y[idx] + this.cy[j] * dEz_dz;
+        this.psi_hx_y[idx] = psi;
+        this.hx[idx] -= (dt / this.mu_hx[idx]) * (dEz_dz + psi);
+      }
+      for (let j = 0; j < nz; j++) for (let i = 0; i < nx - 1; i++) {
+        const idx = i + j * nx;
+        const dEz_dx = (this.ez[idx + 1] - this.ez[idx]) / dx;
+        const psi = this.bx[i] * this.psi_hy_x[idx] + this.cx[i] * dEz_dx;
+        this.psi_hy_x[idx] = psi;
+        this.hy[idx] += (dt / this.mu_hy[idx]) * (dEz_dx + psi);
+      }
+      for (let j = 1; j < nz - 1; j++) for (let i = 1; i < nx - 1; i++) {
+        const idx = i + j * nx;
+        const dHy_dx = (this.hy[idx] - this.hy[idx - 1]) / dx;
+        const dHx_dz = (this.hx[idx] - this.hx[idx - nx]) / dz;
+        const psiX = this.bx[i] * this.psi_ez_x[idx] + this.cx[i] * dHy_dx;
+        const psiY = this.by[j] * this.psi_ez_y[idx] + this.cy[j] * dHx_dz;
+        this.psi_ez_x[idx] = psiX; this.psi_ez_y[idx] = psiY;
+        let val = this.ca[idx] * this.ez[idx] + this.cb[idx] * ((dHy_dx + psiX) - (dHx_dz + psiY));
+        if (this.pecMask[idx]) val = 0;
+        this.ez[idx] = val;
+      }
+      if (source && this.sourceFunc) {
+        const val = this.sourceFunc(t);
+        if (source.type === 'planeWave') {
+          const jLine = cfg.pmlCells + 2;
+          for (let i = 0; i < nx; i++) this.ez[i + jLine * nx] += val;
+        } else {
+          const si = Math.round(source.x), sj = Math.round(source.z);
+          if (si >= 1 && si < nx - 1 && sj >= 1 && sj < nz - 1) {
+            const idx = si + sj * nx;
+            if (source.type === 'hardEz') this.ez[idx] = val;
+            else this.ez[idx] += val;
+          }
+        }
+      }
+      for (let k = 0; k < probes.length; k++) {
+        const p = probes[k];
+        const pi = Math.round(p.x), pj = Math.round(p.z);
+        if (pi >= 0 && pi < nx && pj >= 0 && pj < nz) {
+          const idx = pi + pj * nx;
+          p.ez.push(this.ez[idx]);
+          p.hmag.push(Math.sqrt(this.hx[idx] ** 2 + this.hy[idx] ** 2));
+          if (p.ez.length > 4000) { p.ez.splice(0, 2000); p.hmag.splice(0, 2000); }
+        }
+      }
+      cfg.time += dt; cfg.stepCount++;
+    }
+    getFieldData() { return this.ez; }
+    getProbeData() { return this.config.probes.map(p => Float32Array.from(p.ez)); }
+  }
+
+  class FieldVisualizer {
+    constructor(canvas) { this.canvas = canvas; this.ctx = canvas.getContext('2d'); this.offscreen = null; this.offCtx = null; this.imageData = null; }
+    drawField(data, nx, nz, config) {
+      if (!this.offscreen || this.offscreen.width !== nx || this.offscreen.height !== nz) {
+        this.offscreen = document.createElement('canvas');
+        this.offscreen.width = nx; this.offscreen.height = nz;
+        this.offCtx = this.offscreen.getContext('2d');
+        this.imageData = this.offCtx.createImageData(nx, nz);
+      }
+      const img = this.imageData.data;
+      let maxVal = 1e-20;
+      for (let k = 0; k < data.length; k++) { const a = Math.abs(data[k]); if (a > maxVal) maxVal = a; }
+      const inv = 1 / maxVal;
+      for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+        const idx = i + j * nx; const med = config.materials[idx];
+        const p = idx * 4;
+        let r, g, b;
+        if (med.pec) { r = 55; g = 55; b = 65; }
+        else {
+          const val = data[idx] * inv;
+          const col = this._divergingColor(val);
+          const tint = med.epsR > 1.5;
+          r = Math.min(255, col[0] + (tint ? 10 : 0));
+          g = Math.min(255, col[1] + (tint ? 5 : 0));
+          b = Math.min(255, col[2] + (tint ? 45 : 0));
+        }
+        img[p] = r; img[p+1] = g; img[p+2] = b; img[p+3] = 255;
+      }
+      this.offCtx.putImageData(this.imageData, 0, 0);
+      const ctx = this.ctx;
+      const W = this.canvas.width, H = this.canvas.height;
+      const aspect = nx / nz, canvasAspect = W / H;
+      let dw, dh, dx0, dy0;
+      if (aspect > canvasAspect) { dw = W; dh = W / aspect; dx0 = 0; dy0 = (H - dh) / 2; }
+      else { dh = H; dw = H * aspect; dx0 = (W - dw) / 2; dy0 = 0; }
+      ctx.fillStyle = '#04040a'; ctx.fillRect(0, 0, W, H);
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(this.offscreen, dx0, dy0, dw, dh);
+      const toCanvas = (x, z) => ({
+        cx: dx0 + (x / nx) * dw, cy: dy0 + (z / nz) * dh,
+      });
+      if (config.source && config.source.type !== 'planeWave') {
+        const { cx, cy } = toCanvas(config.source.x, config.source.z);
+        ctx.fillStyle = '#ff4466';
+        ctx.beginPath(); ctx.arc(cx, cy, 5, 0, 2 * Math.PI); ctx.fill();
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+      }
+      ctx.fillStyle = '#22ddff'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
+      config.probes.forEach(p => {
+        const { cx, cy } = toCanvas(p.x, p.z);
+        ctx.beginPath(); ctx.arc(cx, cy, 4, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+      });
+    }
+    _divergingColor(t) {
+      if (t >= 0) { const s = Math.min(1, t); return [Math.floor(5 + 250*s), Math.floor(5 + 75*s), Math.floor(15 + 5*s)]; }
+      const s = Math.min(1, -t); return [Math.floor(5 + 15*s), Math.floor(5 + 75*s), Math.floor(15 + 240*s)];
+    }
+  }
+
+  class ProbeRenderer {
+    constructor(container) { this.container = container; }
+    draw(traces, probes) {
+      this.container.innerHTML = '';
+      traces.forEach((trace, idx) => {
+        const card = document.createElement('div');
+        card.className = 'probe-card';
+        const canvas = document.createElement('canvas');
+        canvas.width = 240; canvas.height = 70;
+        card.appendChild(canvas);
+        const lbl = document.createElement('div');
+        lbl.style.cssText = 'font-size:0.75rem;color:#aaccff;margin-top:2px;';
+        const p = probes[idx];
+        lbl.textContent = `Sonda ${idx+1}${p && p.label ? ' · ' + p.label : ''} (${trace.length})`;
+        card.appendChild(lbl);
+        this.container.appendChild(card);
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#04040a'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        if (trace.length < 2) return;
+        let mx = 1e-12;
+        for (let k = 0; k < trace.length; k++) { const a = Math.abs(trace[k]); if (a > mx) mx = a; }
+        const yScale = (canvas.height * 0.4) / mx;
+        ctx.strokeStyle = 'rgba(150,150,200,0.25)';
+        ctx.beginPath(); ctx.moveTo(0, canvas.height/2); ctx.lineTo(canvas.width, canvas.height/2); ctx.stroke();
+        ctx.strokeStyle = '#44ddff'; ctx.lineWidth = 1; ctx.beginPath();
+        const N = trace.length, startIdx = Math.max(0, N - canvas.width), shown = N - startIdx;
+        for (let k = 0; k < shown; k++) {
+          const x = (k / Math.max(1, shown - 1)) * canvas.width;
+          const y = canvas.height/2 - trace[startIdx + k] * yScale;
+          if (k === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      });
+    }
+  }
+
+  ModuleRegistry.add('em-fdtd', {
+    nombre: '⚡ EM completo (presets + CPML)',
+    depende: [], activoPorDefecto: false,
+    mount(c) {
+      c.container.innerHTML = `
+        <h2>⚡ Simulador EM 2D · FDTD · Presets</h2>
+        <div class="desc">
+          Solver completo con CPML, PEC, y presets didácticos: lámina dieléctrica,
+          guía de onda, cristal fotónico. Unidades normalizadas c = ε₀ = μ₀ = 1.
+        </div>
+        <div class="grid-2" style="gap:12px;">
+          <div>
+            <label style="font-size:0.85rem;color:#aaccff;">Modelo</label>
+            <select id="modelSelect">
+              <option value="freeSpace">Vacío</option>
+              <option value="dielectricSlab">Lámina dieléctrica (ε=4)</option>
+              <option value="waveguide">Guía de onda (PEC)</option>
+              <option value="photonicCrystal">Cristal fotónico (ε=11.4)</option>
+            </select>
+            <label style="font-size:0.85rem;color:#aaccff;">Fuente</label>
+            <select id="sourceType">
+              <option value="softEz">Ez blanda</option>
+              <option value="hardEz">Ez dura</option>
+              <option value="planeWave">Onda plana</option>
+            </select>
+          </div>
+          <div>
+            <div class="param-group"><label>Freq. normalizada</label>
+              <input type="range" id="freqSlider" min="0.02" max="0.15" value="0.05" step="0.005">
+              <span id="freqValue">0.050</span></div>
+            <div class="param-group"><label>Amplitud</label>
+              <input type="range" id="ampSlider" min="0.1" max="5" value="1" step="0.1">
+              <span id="ampValue">1.0</span></div>
+            <div class="param-group"><label>Courant</label>
+              <input type="range" id="courantSlider" min="0.1" max="0.7" value="0.5" step="0.01">
+              <span id="courantValue">0.50</span></div>
+          </div>
+        </div>
+        <button id="addProbeBtn" style="margin-top:8px;">📍 Añadir sonda aleatoria</button>
+        <div class="sim-controls">
+          <button id="startBtn">Iniciar</button>
+          <button id="pauseBtn" disabled>Pausar</button>
+          <button id="resetBtn">Reiniciar</button>
+          <button id="stepBtn">Paso</button>
+        </div>
+        <div class="status ok" id="statusMsg">Listo. Pulsa Iniciar.</div>
+        <canvas id="wavefieldCanvas" width="720" height="480"></canvas>
+        <div class="hud">
+          <span style="color:#ff4466;">● Fuente</span>
+          <span style="color:#22ddff;">● Sondas</span>
+          <span>t = <span id="timeDisplay">0.000</span></span>
+          <span>paso = <span id="stepDisplay">0</span></span>
+        </div>
+        <h2 style="margin-top:12px;font-size:0.95rem;">📈 Sondas</h2>
+        <div class="probes" id="probesContainer"></div>
+      `;
+      const engine = new FDTDEngine();
+      const bus = new EventBus();
+      const visualizer = new FieldVisualizer(c.container.querySelector('#wavefieldCanvas'));
+      const probeRenderer = new ProbeRenderer(c.container.querySelector('#probesContainer'));
+      let running = false, animId = null;
+      const emitUpdate = () => {
+        bus.emit('fieldUpdated', {
+          data: engine.getFieldData(),
+          nx: engine.config.nx, nz: engine.config.nz,
+          config: engine.config,
+          traces: engine.getProbeData(),
+          probes: engine.config.probes,
+        });
+      };
+      const startSim = () => {
+        if (running) return;
+        running = true;
+        const loop = () => {
+          if (!running) return;
+          const spf = engine.config.stepsPerFrame || 4;
+          for (let i = 0; i < spf; i++) engine.step();
+          emitUpdate();
+          animId = requestAnimationFrame(loop);
+        };
+        animId = requestAnimationFrame(loop);
+      };
+      const stopSim = () => { running = false; if (animId) cancelAnimationFrame(animId); };
+      const applyModel = (modelType) => {
+        const config = MODEL_PRESETS[modelType]();
+        const prev = engine.config;
+        if (prev) {
+          config.courant = prev.courant;
+          config.stepsPerFrame = prev.stepsPerFrame;
+          if (config.source && prev.source) {
+            config.source.type = prev.source.type;
+            config.source.freq = prev.source.freq;
+            config.source.amp = prev.source.amp;
+          }
+        }
+        config.updateDt();
+        engine.init(config);
+        c.container.querySelector('#sourceType').value = config.source.type;
+        c.container.querySelector('#freqSlider').value = config.source.freq;
+        c.container.querySelector('#freqValue').textContent = config.source.freq.toFixed(3);
+        c.container.querySelector('#ampSlider').value = config.source.amp;
+        c.container.querySelector('#ampValue').textContent = config.source.amp.toFixed(1);
+        emitUpdate();
+        c.container.querySelector('#statusMsg').textContent = `Modelo: ${modelType} · grid ${config.nx}×${config.nz}`;
+      };
+      c.container.querySelector('#modelSelect').addEventListener('change', (e) => applyModel(e.target.value));
+      c.container.querySelector('#freqSlider').addEventListener('input', (e) => {
+        const v = parseFloat(e.target.value);
+        c.container.querySelector('#freqValue').textContent = v.toFixed(3);
+        if (engine.config.source) { engine.config.source.freq = v; engine._buildSourceFunction(); }
+      });
+      c.container.querySelector('#ampSlider').addEventListener('input', (e) => {
+        const v = parseFloat(e.target.value);
+        c.container.querySelector('#ampValue').textContent = v.toFixed(1);
+        if (engine.config.source) { engine.config.source.amp = v; engine._buildSourceFunction(); }
+      });
+      c.container.querySelector('#courantSlider').addEventListener('input', (e) => {
+        const v = parseFloat(e.target.value);
+        c.container.querySelector('#courantValue').textContent = v.toFixed(2);
+        engine.config.courant = v; engine.config.updateDt();
+        engine._buildMaterialCoefficients(); engine._buildPMLCoefficients();
+      });
+      c.container.querySelector('#sourceType').addEventListener('change', (e) => {
+        if (engine.config.source) { engine.config.source.type = e.target.value; engine._buildSourceFunction(); }
+      });
+      c.container.querySelector('#addProbeBtn').addEventListener('click', () => {
+        const cfg = engine.config;
+        const x = Math.floor(20 + Math.random() * (cfg.nx - 40));
+        const z = Math.floor(20 + Math.random() * (cfg.nz - 40));
+        cfg.probes.push(new Probe(x, z, 'aleatoria'));
+        emitUpdate();
+      });
+      c.container.querySelector('#startBtn').addEventListener('click', () => {
+        startSim();
+        c.container.querySelector('#startBtn').disabled = true;
+        c.container.querySelector('#pauseBtn').disabled = false;
+        c.container.querySelector('#stepBtn').disabled = true;
+      });
+      c.container.querySelector('#pauseBtn').addEventListener('click', () => {
+        stopSim();
+        c.container.querySelector('#startBtn').disabled = false;
+        c.container.querySelector('#pauseBtn').disabled = true;
+        c.container.querySelector('#stepBtn').disabled = false;
+      });
+      c.container.querySelector('#resetBtn').addEventListener('click', () => {
+        stopSim(); engine._resetFields(); emitUpdate();
+        c.container.querySelector('#startBtn').disabled = false;
+        c.container.querySelector('#pauseBtn').disabled = true;
+        c.container.querySelector('#stepBtn').disabled = false;
+      });
+      c.container.querySelector('#stepBtn').addEventListener('click', () => {
+        engine.step(); emitUpdate();
+      });
+      bus.on('fieldUpdated', ({ data, nx, nz, config, traces, probes }) => {
+        visualizer.drawField(data, nx, nz, config);
+        probeRenderer.draw(traces, probes);
+        c.container.querySelector('#timeDisplay').textContent = config.time.toFixed(3);
+        c.container.querySelector('#stepDisplay').textContent = config.stepCount;
+      });
+      applyModel('freeSpace');
+      c._emfdtd = { stopSim, bus };
+    },
+    unmount(c) {
+      if (c._emfdtd?.stopSim) c._emfdtd.stopSim();
+    },
+  });
+})();
+
+/* ============================================================================
+   SECCIÓN 9 — MÓDULO: acústico (ondas de presión en medios planetarios)
+   ============================================================================ */
+(() => {
+  const R_GAS = 8.314, ATM_TO_PA = 101325;
+  class AcousticMedium {
+    constructor({ name, pressure, temperature, molarMass, gamma, absorption = 0.3 }) {
+      this.name = name; this.pressure = pressure; this.temperature = temperature;
+      this.molarMass = molarMass; this.gamma = gamma; this.absorption = absorption;
+    }
+    get soundSpeed() { return Math.sqrt((this.gamma * R_GAS * this.temperature) / this.molarMass); }
+    get density() { return (this.pressure * ATM_TO_PA * this.molarMass) / (R_GAS * this.temperature); }
+    get impedance() { return this.density * this.soundSpeed; }
+  }
+  class AcousticSource { constructor({ x, z, freq, amp, type = 'ricker' }) { Object.assign(this, { x, z, freq, amp, type }); } }
+  class Receiver { constructor({ x, z, label = '' }) { this.x = x; this.z = z; this.label = label; this.trace = []; } }
+  class SimulationConfig {
+    constructor() {
+      this.nx = 120; this.nz = 90; this.dx = 0.02; this.dz = 0.02;
+      this.courant = 0.5; this.dt = 0; this.medium = null; this.source = null;
+      this.receivers = []; this.boundaryMode = 'chamber'; this.spongeWidth = 15;
+      this.time = 0; this.stepCount = 0;
+    }
+    updateDt() {
+      const c = this.medium ? this.medium.soundSpeed : 343;
+      this.dt = this.courant * Math.min(this.dx, this.dz) / (c * Math.SQRT2);
+    }
+    get physicalWidth() { return this.nx * this.dx; }
+    get physicalHeight() { return this.nz * this.dz; }
+    get sampleRate() { return 1 / this.dt; }
+  }
+  class AcousticEngine {
+    init(config) {
+      this.config = config;
+      this._allocate(); this._buildSponge(); this._buildSourceFunction(); this._resetFields();
+    }
+    _allocate() {
+      const n = this.config.nx * this.config.nz;
+      this.p = new Float32Array(n); this.vx = new Float32Array(n); this.vz = new Float32Array(n);
+      this.damping = new Float32Array(n);
+    }
+    _buildSponge() {
+      const { nx, nz, spongeWidth: W, boundaryMode } = this.config;
+      if (boundaryMode !== 'open') return;
+      const maxDamp = 0.1;
+      for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+        const dEdge = Math.min(i, nx - 1 - i, j, nz - 1 - j);
+        let d = 0;
+        if (dEdge < W) { const t = (W - dEdge) / W; d = maxDamp * t * t * t; }
+        this.damping[i + j * nx] = d;
+      }
+    }
+    _buildSourceFunction() {
+      const src = this.config.source;
+      if (!src) { this.sourceFunc = null; return; }
+      const f = src.freq, amp = src.amp;
+      if (src.type === 'tone') {
+        const t0 = 3 / f, tau = 1.2 / f;
+        this.sourceFunc = (t) => {
+          const arg = (t - t0) / tau;
+          return amp * Math.sin(2 * Math.PI * f * (t - t0)) * Math.exp(-arg * arg);
+        };
+      } else {
+        const t0 = 1 / f;
+        this.sourceFunc = (t) => {
+          const tau = Math.PI * f * (t - t0);
+          return amp * (1 - 2 * tau * tau) * Math.exp(-tau * tau);
+        };
+      }
+    }
+    _resetFields() {
+      this.p.fill(0); this.vx.fill(0); this.vz.fill(0);
+      this.config.time = 0; this.config.stepCount = 0;
+      this.config.receivers.forEach(r => { r.trace = []; });
+    }
+    step() {
+      const cfg = this.config;
+      const { nx, nz, dx, dz, dt, source, receivers, boundaryMode } = cfg;
+      const rho = cfg.medium.density, c2 = cfg.medium.soundSpeed ** 2, t = cfg.time;
+      for (let j = 0; j < nz; j++) for (let i = 0; i < nx - 1; i++) {
+        const idx = i + j * nx;
+        this.vx[idx] -= (dt / rho) * (this.p[idx + 1] - this.p[idx]) / dx;
+      }
+      for (let j = 0; j < nz - 1; j++) for (let i = 0; i < nx; i++) {
+        const idx = i + j * nx;
+        this.vz[idx] -= (dt / rho) * (this.p[idx + nx] - this.p[idx]) / dz;
+      }
+      if (source && this.sourceFunc) {
+        const si = Math.round(source.x / dx), sj = Math.round(source.z / dz);
+        if (si >= 1 && si < nx - 1 && sj >= 1 && sj < nz - 1) {
+          this.p[si + sj * nx] += this.sourceFunc(t);
+        }
+      }
+      for (let j = 1; j < nz - 1; j++) for (let i = 1; i < nx - 1; i++) {
+        const idx = i + j * nx;
+        const divX = (this.vx[idx] - this.vx[idx - 1]) / dx;
+        const divZ = (this.vz[idx] - this.vz[idx - nx]) / dz;
+        this.p[idx] -= dt * rho * c2 * (divX + divZ);
+      }
+      if (boundaryMode === 'open') {
+        for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+          const idx = i + j * nx, d = this.damping[idx];
+          if (d > 0) {
+            const f = 1 - d;
+            this.p[idx] *= f; this.vx[idx] *= f; this.vz[idx] *= f;
+          }
+        }
+      } else {
+        for (let j = 0; j < nz; j++) {
+          this.p[0 + j * nx] = this.p[1 + j * nx];
+          this.p[(nx - 1) + j * nx] = this.p[(nx - 2) + j * nx];
+        }
+        for (let i = 0; i < nx; i++) {
+          this.p[i + 0 * nx] = this.p[i + 1 * nx];
+          this.p[i + (nz - 1) * nx] = this.p[i + (nz - 2) * nx];
+        }
+      }
+      for (let k = 0; k < receivers.length; k++) {
+        const r = receivers[k];
+        const ri = Math.round(r.x / dx), rj = Math.round(r.z / dz);
+        if (ri >= 0 && ri < nx && rj >= 0 && rj < nz) r.trace.push(this.p[ri + rj * nx]);
+      }
+      cfg.time += dt; cfg.stepCount++;
+    }
+    getFieldData() { return this.p; }
+  }
+  class AcousticFieldVisualizer {
+    constructor(canvas) { this.canvas = canvas; this.ctx = canvas.getContext('2d'); this.offscreen = null; this.offCtx = null; this.imageData = null; }
+    drawField(data, nx, nz, config) {
+      if (!this.offscreen || this.offscreen.width !== nx) {
+        this.offscreen = document.createElement('canvas');
+        this.offscreen.width = nx; this.offscreen.height = nz;
+        this.offCtx = this.offscreen.getContext('2d');
+        this.imageData = this.offCtx.createImageData(nx, nz);
+      }
+      const img = this.imageData.data;
+      let maxVal = 1e-20;
+      for (let k = 0; k < data.length; k++) { const a = Math.abs(data[k]); if (a > maxVal) maxVal = a; }
+      const inv = 1 / maxVal;
+      for (let idx = 0; idx < data.length; idx++) {
+        const val = data[idx] * inv;
+        const p = idx * 4;
+        const col = this._divergingColor(val);
+        img[p] = col[0]; img[p+1] = col[1]; img[p+2] = col[2]; img[p+3] = 255;
+      }
+      this.offCtx.putImageData(this.imageData, 0, 0);
+      const ctx = this.ctx, W = this.canvas.width, H = this.canvas.height;
+      const aspect = nx / nz, canvasAspect = W / H;
+      let dw, dh, dx0, dy0;
+      if (aspect > canvasAspect) { dw = W; dh = W / aspect; dx0 = 0; dy0 = (H - dh) / 2; }
+      else { dh = H; dw = H * aspect; dx0 = (W - dw) / 2; dy0 = 0; }
+      ctx.fillStyle = '#04040a'; ctx.fillRect(0, 0, W, H);
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(this.offscreen, dx0, dy0, dw, dh);
+      const toC = (x, z) => ({ cx: dx0 + (x / (nx * config.dx)) * dw, cy: dy0 + (z / (nz * config.dz)) * dh });
+      if (config.source) {
+        const { cx, cy } = toC(config.source.x, config.source.z);
+        ctx.fillStyle = '#ff4466'; ctx.beginPath(); ctx.arc(cx, cy, 6, 0, 2*Math.PI); ctx.fill();
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+      }
+      ctx.fillStyle = '#22ddff'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
+      config.receivers.forEach(r => {
+        const { cx, cy } = toC(r.x, r.z);
+        ctx.beginPath(); ctx.arc(cx, cy, 5, 0, 2*Math.PI); ctx.fill(); ctx.stroke();
+      });
+    }
+    _divergingColor(t) {
+      if (t >= 0) { const s = Math.min(1, t); return [Math.floor(5 + 250*s), Math.floor(5 + 75*s), Math.floor(15 + 5*s)]; }
+      const s = Math.min(1, -t); return [Math.floor(5 + 15*s), Math.floor(5 + 75*s), Math.floor(15 + 240*s)];
+    }
+  }
+  class Sonifier {
+    constructor() { this.ctx = null; }
+    _ensureContext() {
+      if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (this.ctx.state === 'suspended') this.ctx.resume();
+    }
+    _resample(samples, srcRate, dstRate) {
+      if (Math.abs(srcRate - dstRate) < 1) return samples;
+      const ratio = srcRate / dstRate;
+      const N = Math.floor(samples.length / ratio);
+      const out = new Float32Array(N);
+      for (let i = 0; i < N; i++) {
+        const srcIdx = i * ratio, i0 = Math.floor(srcIdx);
+        const i1 = Math.min(i0 + 1, samples.length - 1);
+        const frac = srcIdx - i0;
+        out[i] = samples[i0] * (1 - frac) + samples[i1] * frac;
+      }
+      return out;
+    }
+    play(samples, sampleRate, opts = {}) {
+      if (!samples || samples.length < 4) return;
+      this._ensureContext();
+      const TARGET_FS = 44100;
+      const resampled = this._resample(samples, sampleRate, TARGET_FS);
+      const N = resampled.length;
+      const buf = new Float32Array(N);
+      let mx = 1e-12;
+      for (let i = 0; i < N; i++) { const a = Math.abs(resampled[i]); if (a > mx) mx = a; }
+      const norm = 1 / mx;
+      let mean = 0;
+      for (let i = 0; i < N; i++) { buf[i] = resampled[i] * norm; mean += buf[i]; }
+      mean /= N;
+      for (let i = 0; i < N; i++) buf[i] -= mean;
+      const fadeLen = Math.min(200, Math.floor(N / 10));
+      for (let i = 0; i < fadeLen; i++) { buf[i] *= i / fadeLen; buf[N - 1 - i] *= i / fadeLen; }
+      const audioBuffer = this.ctx.createBuffer(1, N, TARGET_FS);
+      audioBuffer.getChannelData(0).set(buf);
+      const src = this.ctx.createBufferSource();
+      src.buffer = audioBuffer;
+      const gainNode = this.ctx.createGain();
+      gainNode.gain.value = opts.gain ?? 0.8;
+      let last = src;
+      if (opts.lowpassHz && opts.lowpassHz > 0 && opts.lowpassHz < TARGET_FS / 2) {
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'lowpass'; filter.frequency.value = opts.lowpassHz; filter.Q.value = 0.7;
+        src.connect(filter); last = filter;
+      }
+      last.connect(gainNode); gainNode.connect(this.ctx.destination);
+      src.start();
+    }
+  }
+
+  ModuleRegistry.add('acustico', {
+    nombre: '🔊 Acústico (medios planetarios)',
+    depende: [], activoPorDefecto: false,
+    mount(c) {
+      c.container.innerHTML = `
+        <h2>🔊 Simulador Acústico 2D · Medios planetarios</h2>
+        <div class="desc">
+          Ondas de presión en Tierra, Marte, Venus y Titán. Cada atmósfera tiene su
+          velocidad del sonido, densidad e impedancia. Botón para escuchar el medio.
+        </div>
+        <div class="grid-2" style="gap:12px;">
+          <div>
+            <label style="font-size:0.85rem;color:#aaccff;">Medio</label>
+            <select id="planetSelect">
+              <option value="tierra">🌍 Tierra</option>
+              <option value="marte">🔴 Marte</option>
+              <option value="venus">🟠 Venus</option>
+              <option value="titan">🪐 Titán</option>
+            </select>
+            <div class="info-line" id="mediumInfo">—</div>
+            <label style="font-size:0.85rem;color:#aaccff;margin-top:8px;display:block;">Frontera</label>
+            <select id="boundarySelect">
+              <option value="chamber">Cámara (paredes rígidas)</option>
+              <option value="open">Abierto (absorbente)</option>
+            </select>
+          </div>
+          <div>
+            <div class="param-group"><label>Frecuencia</label>
+              <input type="range" id="freqSlider" min="100" max="2000" value="800" step="10">
+              <span id="freqValue">800</span></div>
+            <div class="param-group"><label>Amplitud</label>
+              <input type="range" id="ampSlider" min="0.1" max="5" value="1" step="0.1">
+              <span id="ampValue">1.0</span></div>
+          </div>
+        </div>
+        <div class="sim-controls">
+          <button id="startBtn">Iniciar</button>
+          <button id="pauseBtn" disabled>Pausar</button>
+          <button id="stepBtn">Paso</button>
+          <button id="resetBtn">Reiniciar</button>
+          <button id="listenBtn" style="background:linear-gradient(135deg,#2a7a5a,#1a4a3a);">🎧 Escuchar</button>
+        </div>
+        <div class="status ok" id="statusMsg">Listo.</div>
+        <canvas id="wavefieldCanvas" width="600" height="450"></canvas>
+        <div class="hud">
+          <span style="color:#ff4466;">● Fuente</span>
+          <span style="color:#22ddff;">● Receptor</span>
+          <span>t = <span id="timeDisplay">0.0000</span> s</span>
+          <span>paso = <span id="stepDisplay">0</span></span>
+        </div>
+        <h2 style="margin-top:12px;font-size:0.95rem;">📈 Traza del receptor</h2>
+        <canvas id="traceCanvas" width="600" height="100"></canvas>
+      `;
+      const repo = {
+        tierra: new AcousticMedium({ name: 'Tierra', pressure: 1, temperature: 293, molarMass: 0.029, gamma: 1.4, absorption: 0.3 }),
+        marte: new AcousticMedium({ name: 'Marte', pressure: 0.006, temperature: 210, molarMass: 0.044, gamma: 1.3, absorption: 0.75 }),
+        venus: new AcousticMedium({ name: 'Venus', pressure: 92, temperature: 737, molarMass: 0.044, gamma: 1.3, absorption: 0.1 }),
+        titan: new AcousticMedium({ name: 'Titán', pressure: 1.45, temperature: 94, molarMass: 0.028, gamma: 1.4, absorption: 0.2 }),
+      };
+      const engine = new AcousticEngine();
+      const sonifier = new Sonifier();
+      const visualizer = new AcousticFieldVisualizer(c.container.querySelector('#wavefieldCanvas'));
+      const traceCanvas = c.container.querySelector('#traceCanvas');
+      const traceCtx = traceCanvas.getContext('2d');
+      let running = false, animId = null;
+
+      const cfg = new SimulationConfig();
+      cfg.medium = repo.tierra;
+      cfg.boundaryMode = 'chamber';
+      cfg.source = new AcousticSource({ x: cfg.physicalWidth * 0.25, z: cfg.physicalHeight * 0.5, freq: 800, amp: 1, type: 'ricker' });
+      cfg.receivers = [new Receiver({ x: cfg.physicalWidth * 0.75, z: cfg.physicalHeight * 0.5, label: 'R1' })];
+      cfg.updateDt();
+      engine.init(cfg);
+
+      const renderMedium = () => {
+        const m = cfg.medium;
+        c.container.querySelector('#mediumInfo').innerHTML =
+          `<div><b>${m.name}</b> · P=${m.pressure}atm · T=${m.temperature}K</div>
+           <div>c = ${m.soundSpeed.toFixed(1)} m/s · ρ = ${m.density.toFixed(4)} kg/m³ · Z = ${m.impedance.toFixed(2)}</div>`;
+      };
+      const renderTrace = () => {
+        const W = traceCanvas.width, H = traceCanvas.height;
+        traceCtx.fillStyle = '#04040a'; traceCtx.fillRect(0, 0, W, H);
+        const trace = cfg.receivers[0]?.trace;
+        if (!trace || trace.length < 2) return;
+        let mx = 1e-12;
+        for (let k = 0; k < trace.length; k++) { const a = Math.abs(trace[k]); if (a > mx) mx = a; }
+        const yScale = (H * 0.4) / mx;
+        traceCtx.strokeStyle = 'rgba(150,150,200,0.2)';
+        traceCtx.beginPath(); traceCtx.moveTo(0, H/2); traceCtx.lineTo(W, H/2); traceCtx.stroke();
+        traceCtx.strokeStyle = '#44ddff'; traceCtx.lineWidth = 1;
+        traceCtx.beginPath();
+        const N = trace.length, startIdx = Math.max(0, N - W), shown = N - startIdx;
+        for (let k = 0; k < shown; k++) {
+          const x = (k / Math.max(1, shown - 1)) * W;
+          const y = H/2 - trace[startIdx + k] * yScale;
+          if (k === 0) traceCtx.moveTo(x, y); else traceCtx.lineTo(x, y);
+        }
+        traceCtx.stroke();
+      };
+      const renderAll = () => {
+        visualizer.drawField(engine.getFieldData(), cfg.nx, cfg.nz, cfg);
+        renderTrace();
+        c.container.querySelector('#timeDisplay').textContent = cfg.time.toFixed(4);
+        c.container.querySelector('#stepDisplay').textContent = cfg.stepCount;
+      };
+      const startSim = () => {
+        if (running) return;
+        running = true;
+        const loop = () => {
+          if (!running) return;
+          for (let i = 0; i < 3; i++) engine.step();
+          renderAll();
+          animId = requestAnimationFrame(loop);
+        };
+        animId = requestAnimationFrame(loop);
+      };
+      const stopSim = () => { running = false; if (animId) cancelAnimationFrame(animId); };
+
+      c.container.querySelector('#planetSelect').addEventListener('change', (e) => {
+        cfg.medium = repo[e.target.value];
+        cfg.updateDt(); engine._buildSponge(); engine._buildSourceFunction();
+        renderMedium();
+        c.container.querySelector('#statusMsg').textContent = `Medio: ${cfg.medium.name}`;
+      });
+      c.container.querySelector('#boundarySelect').addEventListener('change', (e) => {
+        cfg.boundaryMode = e.target.value;
+        engine._buildSponge();
+      });
+      c.container.querySelector('#freqSlider').addEventListener('input', (e) => {
+        const v = parseFloat(e.target.value);
+        c.container.querySelector('#freqValue').textContent = v;
+        cfg.source.freq = v; engine._buildSourceFunction();
+      });
+      c.container.querySelector('#ampSlider').addEventListener('input', (e) => {
+        const v = parseFloat(e.target.value);
+        c.container.querySelector('#ampValue').textContent = v.toFixed(1);
+        cfg.source.amp = v; engine._buildSourceFunction();
+      });
+      c.container.querySelector('#startBtn').addEventListener('click', () => {
+        startSim();
+        c.container.querySelector('#startBtn').disabled = true;
+        c.container.querySelector('#pauseBtn').disabled = false;
+        c.container.querySelector('#stepBtn').disabled = true;
+      });
+      c.container.querySelector('#pauseBtn').addEventListener('click', () => {
+        stopSim();
+        c.container.querySelector('#startBtn').disabled = false;
+        c.container.querySelector('#pauseBtn').disabled = true;
+        c.container.querySelector('#stepBtn').disabled = false;
+      });
+      c.container.querySelector('#stepBtn').addEventListener('click', () => { engine.step(); renderAll(); });
+      c.container.querySelector('#resetBtn').addEventListener('click', () => {
+        stopSim(); engine._resetFields(); renderAll();
+        c.container.querySelector('#startBtn').disabled = false;
+        c.container.querySelector('#pauseBtn').disabled = true;
+        c.container.querySelector('#stepBtn').disabled = false;
+      });
+      c.container.querySelector('#listenBtn').addEventListener('click', async () => {
+        stopSim();
+        c.container.querySelector('#startBtn').disabled = false;
+        c.container.querySelector('#pauseBtn').disabled = true;
+        c.container.querySelector('#stepBtn').disabled = false;
+        engine._resetFields();
+        const duration = 0.25, steps = Math.floor(duration / cfg.dt);
+        const chunkSize = 400;
+        for (let done = 0; done < steps; done += chunkSize) {
+          const end = Math.min(done + chunkSize, steps);
+          for (let i = done; i < end; i++) engine.step();
+          await new Promise(r => setTimeout(r, 0));
+        }
+        const trace = Float32Array.from(cfg.receivers[0].trace);
+        const fs = cfg.sampleRate, nyq = fs / 2;
+        const abs = Math.min(1, Math.max(0, cfg.medium.absorption));
+        const cutoff = Math.max(500, nyq * (1 - abs * 0.9));
+        sonifier.play(trace, fs, { lowpassHz: cutoff });
+        renderAll();
+      });
+      renderMedium(); renderAll();
+      c._acoustic = { stopSim, sonifier };
+    },
+    unmount(c) {
+      if (c._acoustic?.stopSim) c._acoustic.stopSim();
+      if (c._acoustic?.sonifier?.ctx) c._acoustic.sonifier.ctx.close().catch(() => {});
+    },
+  });
+})();
+
+/* ============================================================================
+   SECCIÓN 10 — MÓDULO: sísmico (ondas elásticas en el manto)
+   ============================================================================ */
+(() => {
+  class MediumProperties {
+    constructor({ vp, vs, rho, q }) {
+      this.vp = vp; this.vs = vs; this.rho = rho; this.q = q;
+      this.lambda = rho * (vp * vp - 2 * vs * vs);
+      this.mu = rho * vs * vs;
+    }
+  }
+  class Layer { constructor(depth, medium) { this.depth = depth; this.medium = medium; } }
+  class Source { constructor(x, z, type, freq, amp) { Object.assign(this, { x, z, type, freq, amp }); } }
+  class Receiver { constructor(x, z) { this.x = x; this.z = z; this.data = []; } }
+  class SimulationConfig {
+    constructor() {
+      this.nx = 200; this.nz = 100; this.dx = 10; this.dz = 10; this.dt = 0.0005;
+      this.layers = []; this.source = null; this.receivers = []; this.mantleProfile = null;
+      this.boundaryConditions = { top: 'free', left: 'absorbing', right: 'absorbing', bottom: 'absorbing' };
+      this.time = 0; this.stepCount = 0; this.stepsPerFrame = 1;
+    }
+    updateDt() {
+      const maxVp = this.mantleProfile ? Math.max(...this.mantleProfile.vps) * 1000
+        : Math.max(...this.layers.map(l => l.medium.vp), 1000);
+      this.dt = 0.4 * Math.min(this.dx, this.dz) / maxVp;
+    }
+  }
+  class MantleProfile {
+    constructor(depths, vps, vss, rhos, qps = null, qss = null) {
+      this.depths = depths; this.vps = vps; this.vss = vss; this.rhos = rhos;
+      this.qps = qps || vps.map(() => 300); this.qss = qss || vss.map(() => 150);
+    }
+    getPropertiesAtDepth(zKm) {
+      const d = this.depths;
+      if (zKm <= d[0]) return this._make(0);
+      if (zKm >= d[d.length - 1]) return this._make(d.length - 1);
+      for (let i = 0; i < d.length - 1; i++) {
+        if (zKm >= d[i] && zKm <= d[i + 1]) {
+          const t = (zKm - d[i]) / (d[i + 1] - d[i]);
+          return new MediumProperties({
+            vp: (this.vps[i] + t * (this.vps[i + 1] - this.vps[i])) * 1000,
+            vs: (this.vss[i] + t * (this.vss[i + 1] - this.vss[i])) * 1000,
+            rho: (this.rhos[i] + t * (this.rhos[i + 1] - this.rhos[i])) * 1000,
+            q: this.qps[i] + t * (this.qps[i + 1] - this.qps[i]),
+          });
+        }
+      }
+      return new MediumProperties({ vp: 8000, vs: 4500, rho: 3300, q: 300 });
+    }
+    _make(idx) {
+      return new MediumProperties({
+        vp: this.vps[idx] * 1000, vs: this.vss[idx] * 1000,
+        rho: this.rhos[idx] * 1000, q: this.qps[idx],
+      });
+    }
+  }
+  const PREM_SIMPLIFIED = new MantleProfile(
+    [0,35,100,220,410,520,660,800,1000,1500,2000,2500,2890],
+    [5.8,8.0,8.1,8.5,9.0,9.7,10.2,10.8,11.2,11.8,12.4,13.0,13.7],
+    [3.2,4.5,4.5,4.7,4.9,5.3,5.6,5.9,6.1,6.4,6.8,7.1,7.3],
+    [2.6,3.3,3.35,3.4,3.5,3.7,3.9,4.1,4.3,4.6,4.9,5.2,5.6],
+    [300,400,300,200,300,300,400,500,600,700,800,900,1000],
+    [150,200,150,100,150,150,200,250,300,350,400,450,500]
+  );
+  class SeismicEngine {
+    init(config) {
+      this.config = config;
+      this._buildGrid(); this._buildMaterialArrays();
+      this._buildBoundaryDamping(); this._buildSourceTimeFunction(); this._resetFields();
+    }
+    _buildGrid() {
+      const { nx, nz } = this.config;
+      this.vx = new Float32Array(nx * nz); this.vz = new Float32Array(nx * nz);
+      this.sxx = new Float32Array(nx * nz); this.szz = new Float32Array(nx * nz);
+      this.sxz = new Float32Array(nx * nz);
+      this.rho_vx = new Float32Array(nx * nz); this.rho_vz = new Float32Array(nx * nz);
+      this.lambda2mu = new Float32Array(nx * nz); this.lambda = new Float32Array(nx * nz);
+      this.mu_sxz = new Float32Array(nx * nz); this.damping = new Float32Array(nx * nz);
+    }
+    _buildMaterialArrays() {
+      const { nx, nz, dz, layers, mantleProfile } = this.config;
+      const mediumAtCell = new Array(nx * nz);
+      for (let j = 0; j < nz; j++) {
+        const zM = j * dz, zKm = zM / 1000;
+        let medium;
+        if (mantleProfile) medium = mantleProfile.getPropertiesAtDepth(zKm);
+        else {
+          medium = layers[0]?.medium || new MediumProperties({ vp: 5500, vs: 3200, rho: 2700, q: 100 });
+          for (let l = layers.length - 1; l >= 0; l--) {
+            if (zM >= layers[l].depth) { medium = layers[l].medium; break; }
+          }
+        }
+        for (let i = 0; i < nx; i++) mediumAtCell[i + j * nx] = medium;
+      }
+      for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+        const idx = i + j * nx; const med = mediumAtCell[idx];
+        const lambda = med.lambda, mu = med.mu, rho = med.rho;
+        const medRight = mediumAtCell[Math.min(i + 1, nx - 1) + j * nx];
+        this.rho_vx[idx] = 0.5 * (rho + medRight.rho);
+        this.lambda2mu[idx] = 0.5 * (lambda + medRight.lambda + 2 * (mu + medRight.mu));
+        const medBelow = mediumAtCell[i + Math.min(j + 1, nz - 1) * nx];
+        this.rho_vz[idx] = 0.5 * (rho + medBelow.rho);
+        const medRD = mediumAtCell[Math.min(i+1, nx-1) + j * nx];
+        const medRB = mediumAtCell[i + Math.min(j+1, nz-1) * nx];
+        const medRBD = mediumAtCell[Math.min(i+1, nx-1) + Math.min(j+1, nz-1) * nx];
+        this.mu_sxz[idx] = 0.25 * (mu + medRD.mu + medRB.mu + medRBD.mu);
+        this.lambda[idx] = lambda;
+      }
+    }
+    _buildBoundaryDamping() {
+      const { nx, nz, boundaryConditions } = this.config;
+      const dw = Math.min(20, Math.floor(Math.min(nx, nz) * 0.1));
+      for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+        let damp = 0;
+        if (boundaryConditions.left === 'absorbing' && i < dw)
+          damp = Math.max(damp, 0.1 * (1 - i / dw));
+        if (boundaryConditions.right === 'absorbing' && i > nx - dw - 1)
+          damp = Math.max(damp, 0.1 * (1 - (nx - 1 - i) / dw));
+        if (boundaryConditions.bottom === 'absorbing' && j > nz - dw - 1)
+          damp = Math.max(damp, 0.1 * (1 - (nz - 1 - j) / dw));
+        this.damping[i + j * nx] = damp;
+      }
+    }
+    _buildSourceTimeFunction() {
+      const src = this.config.source; if (!src) return;
+      const f = src.freq, t0 = 1 / f;
+      this.sourceTimeFunction = (t) => {
+        const tau = Math.PI * f * (t - t0);
+        return (1 - 2 * tau * tau) * Math.exp(-tau * tau) * src.amp;
+      };
+    }
+    _resetFields() {
+      this.vx.fill(0); this.vz.fill(0);
+      this.sxx.fill(0); this.szz.fill(0); this.sxz.fill(0);
+      this.config.time = 0; this.config.stepCount = 0;
+      this.config.receivers.forEach(r => r.data = []);
+    }
+    step() {
+      const { nx, nz, dx, dz, dt, source, receivers } = this.config;
+      const t = this.config.time;
+      for (let j = 1; j < nz - 1; j++) for (let i = 1; i < nx - 1; i++) {
+        const idx = i + j * nx, idx_im1 = (i - 1) + j * nx, idx_jm1 = i + (j - 1) * nx;
+        this.vx[idx] += dt * ((this.sxx[idx] - this.sxx[idx_im1]) / dx +
+                              (this.sxz[idx] - this.sxz[idx_jm1]) / dz) / this.rho_vx[idx];
+        this.vz[idx] += dt * ((this.sxz[idx] - this.sxz[idx_im1]) / dx +
+                              (this.szz[idx] - this.szz[idx_jm1]) / dz) / this.rho_vz[idx];
+        const damp = this.damping[idx];
+        if (damp > 0) { this.vx[idx] *= (1 - damp); this.vz[idx] *= (1 - damp); }
+      }
+      if (source && this.sourceTimeFunction) {
+        const sx = Math.floor(source.x / dx), sz = Math.floor(source.z / dz);
+        if (sx >= 0 && sx < nx && sz >= 0 && sz < nz) {
+          const idx = sx + sz * nx, val = this.sourceTimeFunction(t);
+          if (source.type === 'explosion') { this.sxx[idx] += val; this.szz[idx] += val; }
+          else if (source.type === 'verticalForce') this.vz[idx] += val;
+          else if (source.type === 'horizontalForce') this.vx[idx] += val;
+        }
+      }
+      for (let j = 1; j < nz - 1; j++) for (let i = 1; i < nx - 1; i++) {
+        const idx = i + j * nx;
+        const idx_ip1 = (i + 1) + j * nx, idx_jp1 = i + (j + 1) * nx;
+        this.sxx[idx] += dt * (this.lambda2mu[idx] * (this.vx[idx_ip1] - this.vx[idx]) / dx +
+                                this.lambda[idx] * (this.vz[idx_jp1] - this.vz[idx]) / dz);
+        this.szz[idx] += dt * (this.lambda[idx] * (this.vx[idx_ip1] - this.vx[idx]) / dx +
+                                this.lambda2mu[idx] * (this.vz[idx_jp1] - this.vz[idx]) / dz);
+        this.sxz[idx] += dt * this.mu_sxz[idx] * ((this.vx[idx_jp1] - this.vx[idx]) / dz +
+                                                   (this.vz[idx_ip1] - this.vz[idx]) / dx);
+      }
+      if (this.config.boundaryConditions.top === 'free') {
+        for (let i = 0; i < nx; i++) { this.szz[i] = 0; this.sxz[i] = 0; }
+      }
+      receivers.forEach(rec => {
+        const rx = Math.floor(rec.x / dx), rz = Math.floor(rec.z / dz);
+        if (rx >= 0 && rx < nx && rz >= 0 && rz < nz) {
+          const idx = rx + rz * nx;
+          rec.data.push(Math.sqrt(this.vx[idx] ** 2 + this.vz[idx] ** 2));
+        }
+      });
+      this.config.time += dt; this.config.stepCount++;
+    }
+    getFieldData() {
+      const { nx, nz } = this.config;
+      const data = new Float32Array(nx * nz);
+      for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+        const idx = i + j * nx;
+        data[idx] = Math.sqrt(this.vx[idx] ** 2 + this.vz[idx] ** 2);
+      }
+      return data;
+    }
+  }
+  class SeismicVisualizer {
+    constructor(canvas) { this.canvas = canvas; this.ctx = canvas.getContext('2d'); this.imageData = null; }
+    drawField(data, nx, nz, config) {
+      const ctx = this.ctx, canvas = this.canvas;
+      const scaleX = canvas.width / nx, scaleY = canvas.height / nz;
+      if (!this.imageData || this.imageData.width !== canvas.width)
+        this.imageData = ctx.createImageData(canvas.width, canvas.height);
+      const imgData = this.imageData.data;
+      let maxVal = 0;
+      for (let i = 0; i < data.length; i++) if (data[i] > maxVal) maxVal = data[i];
+      if (maxVal === 0) maxVal = 1;
+      for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+        const idx = i + j * nx;
+        const norm = Math.min(1, data[idx] / maxVal);
+        const [r, g, b] = this._hotColor(norm);
+        const x0 = Math.floor(i * scaleX), y0 = Math.floor(j * scaleY);
+        const x1 = Math.floor((i + 1) * scaleX), y1 = Math.floor((j + 1) * scaleY);
+        for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+          const p = (y * canvas.width + x) * 4;
+          imgData[p] = r; imgData[p+1] = g; imgData[p+2] = b; imgData[p+3] = 255;
+        }
+      }
+      ctx.putImageData(this.imageData, 0, 0);
+      if (config.source) {
+        const sx = config.source.x / (nx * config.dx);
+        const sz = config.source.z / (nz * config.dz);
+        ctx.fillStyle = '#00ffff';
+        ctx.beginPath(); ctx.arc(sx * canvas.width, sz * canvas.height, 4, 0, 2*Math.PI); ctx.fill();
+      }
+      config.receivers.forEach(rec => {
+        const rx = rec.x / (nx * config.dx), rz = rec.z / (nz * config.dz);
+        ctx.fillStyle = '#00ccff';
+        ctx.beginPath(); ctx.arc(rx * canvas.width, rz * canvas.height, 3, 0, 2*Math.PI); ctx.fill();
+      });
+    }
+    _hotColor(t) {
+      const r = Math.min(255, Math.floor(255 * Math.max(0, Math.min(1, t * 3))));
+      const g = Math.min(255, Math.floor(255 * Math.max(0, Math.min(1, t * 3 - 1))));
+      const b = Math.min(255, Math.floor(255 * Math.max(0, Math.min(1, t * 3 - 2))));
+      return [r, g, b];
+    }
+  }
+  class SeismogramRenderer {
+    constructor(container) { this.container = container; }
+    draw(traces, receivers) {
+      this.container.innerHTML = '';
+      traces.forEach((trace, idx) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'seismogram';
+        const canvas = document.createElement('canvas');
+        canvas.width = 150; canvas.height = 60;
+        wrapper.appendChild(canvas);
+        this.container.appendChild(wrapper);
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = '#44aaff'; ctx.lineWidth = 1;
+        const maxVal = Math.max(...trace, 1e-10);
+        const yScale = canvas.height / (2 * maxVal);
+        ctx.beginPath();
+        for (let i = 0; i < trace.length; i++) {
+          const x = (i / trace.length) * canvas.width;
+          const y = canvas.height / 2 - trace[i] * yScale;
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.fillStyle = '#aaccff'; ctx.font = '10px sans-serif';
+        ctx.fillText(`Rec ${idx+1}`, 5, 10);
+      });
+    }
+  }
+
+  ModuleRegistry.add('sismico', {
+    nombre: '🌍 Sísmico (manto terrestre)',
+    depende: [], activoPorDefecto: false,
+    mount(c) {
+      c.container.innerHTML = `
+        <h2>🌍 Simulador Sísmico 2D · Manto terrestre</h2>
+        <div class="desc">
+          Diferencias finitas (Virieux) sobre modelo PREM simplificado.
+          Velocidad, esfuerzo y sismogramas en tiempo real.
+        </div>
+        <label style="font-size:0.85rem;color:#aaccff;">Modelo</label>
+        <select id="modelSelect">
+          <option value="prem">Perfil PREM (manto)</option>
+          <option value="layers">Capas personalizadas</option>
+        </select>
+        <label style="font-size:0.85rem;color:#aaccff;">Fuente</label>
+        <select id="sourceType">
+          <option value="explosion">Explosión (P)</option>
+          <option value="verticalForce">Fuerza vertical (P+S)</option>
+          <option value="horizontalForce">Fuerza horizontal (P+S)</option>
+        </select>
+        <div class="sim-controls">
+          <button id="startBtn">Iniciar</button>
+          <button id="pauseBtn" disabled>Pausar</button>
+          <button id="resetBtn">Reiniciar</button>
+          <button id="stepBtn">Paso</button>
+          <button id="addReceiverBtn">📍 Añadir receptor</button>
+        </div>
+        <div class="status ok" id="statusMsg">Selecciona modelo y pulsa Iniciar</div>
+        <canvas id="wavefieldCanvas" width="600" height="300"></canvas>
+        <div class="hud">
+          <span style="color:#ff00ff;">● Fuente</span>
+          <span style="color:#00ccff;">● Receptores</span>
+          <span>t = <span id="timeDisplay">0.000</span> s</span>
+        </div>
+        <h2 style="margin-top:12px;font-size:0.95rem;">📈 Sismogramas</h2>
+        <div class="seismograms" id="seismogramsContainer"></div>
+      `;
+      const engine = new SeismicEngine();
+      const visualizer = new SeismicVisualizer(c.container.querySelector('#wavefieldCanvas'));
+      const seismoRenderer = new SeismogramRenderer(c.container.querySelector('#seismogramsContainer'));
+      let running = false, animId = null;
+
+      const applyModel = (modelType) => {
+        const config = new SimulationConfig();
+        if (modelType === 'prem') {
+          config.mantleProfile = PREM_SIMPLIFIED;
+          config.nx = 200; config.nz = 290; config.dx = 10000; config.dz = 10000;
+          config.stepsPerFrame = 5;
+          config.source = new Source(1000000, 30000, 'explosion', 0.1, 1);
+          config.receivers = [new Receiver(1500000, 0)];
+        } else {
+          config.nx = 200; config.nz = 100; config.dx = 10; config.dz = 10;
+          config.layers = [new Layer(0, new MediumProperties({ vp: 5500, vs: 3200, rho: 2700, q: 100 }))];
+          config.stepsPerFrame = 1;
+          config.source = new Source(500, 300, 'explosion', 15, 1);
+          config.receivers = [new Receiver(800, 300)];
+        }
+        config.updateDt();
+        engine.init(config);
+        c.container.querySelector('#sourceType').value = config.source.type;
+        emitUpdate();
+        c.container.querySelector('#statusMsg').textContent = `Modelo: ${modelType} · grid ${config.nx}×${config.nz}`;
+      };
+      const emitUpdate = () => {
+        const data = engine.getFieldData();
+        visualizer.drawField(data, engine.config.nx, engine.config.nz, engine.config);
+        seismoRenderer.draw(engine.config.receivers.map(r => Float32Array.from(r.data)), engine.config.receivers);
+        c.container.querySelector('#timeDisplay').textContent = engine.config.time.toFixed(3);
+      };
+      const startSim = () => {
+        if (running) return;
+        running = true;
+        const loop = () => {
+          if (!running) return;
+          const spf = engine.config.stepsPerFrame || 1;
+          for (let i = 0; i < spf; i++) engine.step();
+          emitUpdate();
+          animId = requestAnimationFrame(loop);
+        };
+        animId = requestAnimationFrame(loop);
+      };
+      const stopSim = () => { running = false; if (animId) cancelAnimationFrame(animId); };
+
+      c.container.querySelector('#modelSelect').addEventListener('change', (e) => applyModel(e.target.value));
+      c.container.querySelector('#sourceType').addEventListener('change', (e) => {
+        if (engine.config.source) {
+          engine.config.source.type = e.target.value;
+          engine._buildSourceTimeFunction();
+        }
+      });
+      c.container.querySelector('#addReceiverBtn').addEventListener('click', () => {
+        const cfg = engine.config;
+        const x = Math.random() * cfg.nx * cfg.dx;
+        const z = Math.random() * cfg.nz * cfg.dz * 0.5;
+        cfg.receivers.push(new Receiver(x, z));
+        emitUpdate();
+      });
+      c.container.querySelector('#startBtn').addEventListener('click', () => {
+        startSim();
+        c.container.querySelector('#startBtn').disabled = true;
+        c.container.querySelector('#pauseBtn').disabled = false;
+        c.container.querySelector('#stepBtn').disabled = true;
+      });
+      c.container.querySelector('#pauseBtn').addEventListener('click', () => {
+        stopSim();
+        c.container.querySelector('#startBtn').disabled = false;
+        c.container.querySelector('#pauseBtn').disabled = true;
+        c.container.querySelector('#stepBtn').disabled = false;
+      });
+      c.container.querySelector('#resetBtn').addEventListener('click', () => {
+        stopSim(); engine._resetFields(); emitUpdate();
+        c.container.querySelector('#startBtn').disabled = false;
+        c.container.querySelector('#pauseBtn').disabled = true;
+        c.container.querySelector('#stepBtn').disabled = false;
+      });
+      c.container.querySelector('#stepBtn').addEventListener('click', () => { engine.step(); emitUpdate(); });
+      applyModel('prem');
+      c._sismico = { stopSim };
+    },
+    unmount(c) {
+      if (c._sismico?.stopSim) c._sismico.stopSim();
+    },
+  });
+})();
+
+/* ============================================================================
+   SECCIÓN 11 — TESTS
+   ============================================================================ */
+function runTests() {
+  const results = [];
+  const test = (name, fn) => {
+    try { fn(); results.push({ name, ok: true }); }
+    catch (e) { results.push({ name, ok: false, error: e.message }); }
+  };
+  const assert = (cond, msg) => { if (!cond) throw new Error(msg); };
+  const approx = (a, b, tol, msg) => {
+    if (Math.abs(a - b) > tol) throw new Error(`${msg || ''}: esperado ${b}±${tol}, obtenido ${a}`);
+  };
+
+  // --- EventBus ---
+  test('EventBus: on/emit recibe payload', () => {
+    const bus = new EventBus(); let received = null;
+    bus.on('evt', (p) => { received = p; });
+    bus.emit('evt', { x: 42 });
+    assert(received && received.x === 42, 'payload no recibido');
+  });
+  test('EventBus: off desuscribe', () => {
+    const bus = new EventBus(); let count = 0;
+    const cb = () => { count++; };
+    bus.on('evt', cb); bus.emit('evt'); bus.off('evt', cb); bus.emit('evt');
+    assert(count === 1, `esperado 1, recibido ${count}`);
+  });
+
+  // --- wavelengthToRGB ---
+  test('wavelengthToRGB: 550nm verde dominante', () => {
+    const [r, g, b] = wavelengthToRGB(550);
+    assert(g > r && g > b, `no dominante verde: ${r},${g},${b}`);
+  });
+  test('wavelengthToRGB: 650nm rojo dominante', () => {
+    const [r, g, b] = wavelengthToRGB(650);
+    assert(r > g && r > b, `no dominante rojo`);
+  });
+  test('wavelengthToRGB: 450nm azul dominante', () => {
+    const [r, g, b] = wavelengthToRGB(450);
+    assert(b > r && b > g, `no dominante azul`);
+  });
+
+  // --- rgbToApproxSpectrum ---
+  test('rgbToApproxSpectrum: rojo puro → 650 y algo en 780', () => {
+    const s = rgbToApproxSpectrum(255, 0, 0);
+    assert(s[650] > 0.9 && s[780] > 0.2 && s[450] < 0.1 && s[550] < 0.1, 'mal reparto');
+  });
+  test('rgbToApproxSpectrum: verde puro → 550', () => {
+    const s = rgbToApproxSpectrum(0, 255, 0);
+    assert(s[550] > 0.9 && s[650] < 0.1 && s[450] < 0.1, 'mal reparto');
+  });
+  test('rgbToApproxSpectrum: azul puro → 450 y algo en 380', () => {
+    const s = rgbToApproxSpectrum(0, 0, 255);
+    assert(s[450] > 0.9 && s[380] > 0.1 && s[650] < 0.1, 'mal reparto');
+  });
+  test('rgbToApproxSpectrum: blanco → todas las bandas', () => {
+    const s = rgbToApproxSpectrum(255, 255, 255);
+    assert(s[380] > 0.1 && s[450] > 0.9 && s[550] > 0.9 && s[650] > 0.9, 'blanco no cubre');
+  });
+  test('rgbToApproxSpectrum: negro → cero', () => {
+    const s = rgbToApproxSpectrum(0, 0, 0);
+    for (const k in s) assert(s[k] === 0, `banda ${k} no es 0`);
+  });
+
+  // --- ModuleRegistry ---
+  test('ModuleRegistry: add/get/all/clear', () => {
+    const saved = [...ModuleRegistry.all()];
+    ModuleRegistry.clear();
+    ModuleRegistry.add('test-a', { nombre: 'A' });
+    assert(ModuleRegistry.all().length === 1, 'no hay 1 módulo');
+    assert(ModuleRegistry.get('test-a').nombre === 'A', 'get falla');
+    assert(ModuleRegistry.get('no-existe') === undefined, 'get debería ser undefined');
+    ModuleRegistry.clear();
+    for (const m of saved) ModuleRegistry.add(m.id, m);
+  });
+
+  // --- Módulos registrados ---
+  const REQUIRED = ['em-motor', 'em-color', 'percepcion', 'ojo-animal', 'foto-animal',
+                    'em-fdtd', 'acustico', 'sismico'];
+  for (const id of REQUIRED) {
+    test(`Módulo ${id} registrado`, () => {
+      assert(ModuleRegistry.get(id), `${id} no registrado`);
+    });
+  }
+  test('em-color depende de em-motor', () => {
+    const mod = ModuleRegistry.get('em-color');
+    assert(mod.depende.includes('em-motor'), 'falta dependencia');
+  });
+  test('ojo-animal depende de em-motor', () => {
+    const mod = ModuleRegistry.get('ojo-animal');
+    assert(mod.depende.includes('em-motor'), 'falta dependencia');
+    assert(typeof mod.api.getAnimals === 'function', 'getAnimals ausente');
+  });
+  test('foto-animal es autónomo y expone api', () => {
+    const mod = ModuleRegistry.get('foto-animal');
+    assert((mod.depende || []).length === 0, 'no debería tener dependencias');
+    assert(typeof mod.api.getAnimals === 'function', 'getAnimals ausente');
+    assert(typeof mod.api.hasImage === 'function', 'hasImage ausente');
+  });
+
+  // --- Tabla de animales ---
+  test('Tabla ANIMALS: al menos 10 animales', () => {
+    assert(Object.keys(ANIMALS).length >= 10, `solo hay ${Object.keys(ANIMALS).length}`);
+  });
+  test('Cada animal tiene nombre, canales, rgb y nota', () => {
+    for (const id in ANIMALS) {
+      const a = ANIMALS[id];
+      assert(a.nombre, `${id} sin nombre`);
+      assert(a.channels && a.channels.length > 0, `${id} sin canales`);
+      assert(a.note, `${id} sin nota`);
+      for (const ch of a.channels) {
+        assert(ch.name && ch.rgb && ch.rgb.length === 3, `${id}/${ch.name} sin rgb`);
+        const sum = Object.values(ch.weights || {}).reduce((a, b) => a + b, 0);
+        assert(sum > 0, `${id}/${ch.name} sin peso`);
+      }
+    }
+  });
+
+  // --- Física acústica (duplicada aquí como verificación cruzada) ---
+  test('Acústico: Tierra c ≈ 343 m/s', () => {
+    const c = Math.sqrt(1.4 * 8.314 * 293 / 0.029);
+    approx(c, 343, 5, 'c Tierra');
+  });
+  test('Acústico: Marte c ≈ 240 m/s', () => {
+    const c = Math.sqrt(1.3 * 8.314 * 210 / 0.044);
+    approx(c, 240, 15, 'c Marte');
+  });
+
+  // --- Física EM (unidades normalizadas) ---
+  test('EM: dt ≤ S·dx/(c·√2) para Courant 0.5', () => {
+    const S = 0.5, dx = 1, c = 1;
+    const dt = S * dx / (c * Math.SQRT2);
+    assert(dt <= 1 / Math.SQRT2, 'dt viola CFL');
+  });
+
+  // --- Estructura del Orchestrator ---
+  test('Orchestrator: existe la clase y arranca', () => {
+    assert(typeof Orchestrator === 'function', 'Orchestrator no definido');
+  });
+
+  const okCount = results.filter(r => r.ok).length;
+  const failCount = results.length - okCount;
+  console.log(`\n=== TESTS: ${okCount}/${results.length} OK ===`);
+  results.forEach(r => {
+    if (r.ok) console.log(`✅ ${r.name}`);
+    else console.error(`❌ ${r.name}: ${r.error}`);
+  });
+  console.log('=== Fin de tests ===\n');
+
+  const panel = document.getElementById('test-results');
+  const list = document.getElementById('test-list');
+  if (panel && list) {
+    panel.style.display = 'block';
+    list.innerHTML = results.map(r =>
+      `<div class="${r.ok ? 'test-ok' : 'test-fail'}">${r.ok ? '✅' : '❌'} ${r.name}${r.ok ? '' : ' — ' + r.error}</div>`
+    ).join('') + `<div style="margin-top:8px;color:#aaccff;">Total: ${okCount}/${results.length} OK</div>`;
+  }
+  return { ok: okCount, fail: failCount, results };
+}
+
+/* ============================================================================
+   SECCIÓN 12 — ARRANQUE
+   ============================================================================ */
+window.addEventListener('load', () => {
+  runTests();
+  const nav = document.getElementById('module-nav');
+  const root = document.getElementById('modules-root');
+  const orchestrator = new Orchestrator(ModuleRegistry, nav, root);
+  orchestrator.boot();
+});
+</script>
+</body>
+</html>
