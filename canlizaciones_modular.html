@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Física modular — fluidos, electricidad, calor</title>
+<style>
+  :root {
+    --bg:#0f1419; --card:#1a2332; --border:#2a3a4a; --text:#e6eef6;
+    --muted:#8fa3b8; --accent:#ff8c42; --accent2:#4a9eff; --accent3:#a78bfa;
+    --good:#4ade80; --bad:#f87171; --warn:#fbbf24;
+  }
+  * { box-sizing:border-box; }
+  body {
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+    background:var(--bg); color:var(--text); margin:0; padding:20px;
+    line-height:1.5; font-size:15px;
+  }
+  .container { max-width:1280px; margin:0 auto; }
+  h1 { font-size:1.5rem; margin:0 0 .3rem; }
+  h2 { font-size:1rem; margin:0 0 12px; font-weight:600; }
+  .subtitle { color:var(--muted); margin-bottom:1.5rem; font-size:.9rem; }
+
+  /* Tabs de dominios */
+  #domainTabs { display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; }
+  #domainTabs button {
+    background:var(--card); border:1px solid var(--border); color:var(--text);
+    padding:10px 18px; border-radius:8px; cursor:pointer; font-size:.9rem;
+    font-family:inherit; transition:all .15s;
+  }
+  #domainTabs button:hover { border-color:var(--muted); }
+  #domainTabs button.active { border-color:var(--accent); background:rgba(255,140,66,.1); }
+
+  .main-grid {
+    display:grid; grid-template-columns:minmax(280px, 1fr) 2fr;
+    gap:16px; margin-bottom:16px;
+  }
+  @media (max-width:800px) { .main-grid { grid-template-columns:1fr; } }
+
+  .card {
+    background:var(--card); border:1px solid var(--border);
+    border-radius:12px; padding:18px;
+  }
+  .card h2 { color:var(--accent); }
+
+  .field { display:grid; grid-template-columns:1fr auto; gap:8px;
+           align-items:center; margin-bottom:9px; }
+  .field label { font-size:.82rem; color:var(--muted); }
+  .field input, .field select {
+    background:var(--bg); border:1px solid var(--border); border-radius:6px;
+    color:var(--text); padding:6px 10px; width:120px; font-size:.88rem;
+    font-family:inherit; text-align:right;
+  }
+  .field select { width:150px; text-align:left; }
+  .field input:focus, .field select:focus { outline:none; border-color:var(--accent); }
+  .unit { color:var(--muted); font-size:.72rem; margin-left:4px; }
+
+  .metrics-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  @media (max-width:600px) { .metrics-grid { grid-template-columns:1fr; } }
+  .metric {
+    display:flex; justify-content:space-between; padding:8px 12px;
+    background:rgba(255,255,255,.02); border-radius:6px; font-size:.85rem;
+  }
+  .metric-label { color:var(--muted); }
+  .metric-value { font-family:ui-monospace,'SF Mono',Menlo,monospace; font-weight:500; }
+  .metric-value.good { color:var(--good); }
+  .metric-value.bad { color:var(--bad); }
+  .metric-value.warn { color:var(--warn); }
+
+  canvas { width:100%; height:280px; display:block; margin-top:12px;
+           background:var(--bg); border-radius:8px; }
+
+  #tests { margin-top:24px; }
+  .test-summary {
+    display:flex; gap:20px; padding:12px 16px; background:var(--card);
+    border-radius:8px; margin-bottom:12px; font-size:.9rem;
+  }
+  .test-summary .ok { color:var(--good); font-weight:600; }
+  .test-summary .fail { color:var(--bad); font-weight:600; }
+  .test-item {
+    padding:6px 12px; font-size:.82rem; border-bottom:1px solid rgba(255,255,255,.04);
+    display:flex; gap:10px; align-items:center;
+  }
+  .test-item .icon { font-size:1rem; }
+  .test-item .suite { color:var(--muted); font-size:.75rem; min-width:100px; }
+  .test-item .name { flex:1; }
+  .test-item.fail .name { color:var(--bad); }
+  .test-item .error { color:var(--bad); font-size:.75rem; font-family:monospace; }
+
+  .arch-note {
+    padding:12px 16px; background:rgba(74,158,255,.06);
+    border-left:3px solid var(--accent2); border-radius:6px;
+    font-size:.85rem; margin-bottom:16px;
+  }
+  .arch-note strong { color:var(--accent2); }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Física modular</h1>
+  <p class="subtitle">Tres dominios, una misma arquitectura. Añadir el cuarto es duplicar un objeto.</p>
+
+  <div class="arch-note">
+    <strong>Arquitectura hexagonal:</strong> el dominio (física pura) no sabe que existe el DOM.
+    La UI se genera a partir del <code>schema</code> de cada dominio y se comunica por eventos.
+    Los tests corren al cargar y validan la física sin tocar la UI.
+  </div>
+
+  <nav id="domainTabs"></nav>
+
+  <div class="main-grid">
+    <section class="card">
+      <h2>Entradas</h2>
+      <div id="inputs"></div>
+    </section>
+    <section class="card">
+      <h2>Resultados</h2>
+      <div id="metrics" class="metrics-grid"></div>
+      <canvas id="chart"></canvas>
+    </section>
+  </div>
+
+  <section id="tests" class="card">
+    <h2 style="color:var(--accent3)">Tests</h2>
+    <div id="testOutput"></div>
+  </section>
+</div>
+
+<script>
+/* ============================================================
+   MÓDULO 0 — Namespace raíz
+   Todo vive bajo App.* para no ensuciar el scope global.
+   ============================================================ */
+const App = {};
+
+/* ============================================================
+   MÓDULO 1 — EventBus (PUERTO de comunicación)
+   -------------------------------------------------------------
+   Los módulos NO se llaman directamente. Emiten eventos.
+   Esto permite:
+     - Sustituir la UI sin tocar la física.
+     - Añadir persistencia, logging, telemetría... sin tocar el dominio.
+     - Probar el dominio sin UI.
+
+   Contrato:
+     on(event, handler) -> unsubscribe()   (devuelve función para desuscribir)
+     off(event, handler)
+     emit(event, payload)
+   ============================================================ */
+App.EventBus = (() => {
+  const listeners = new Map();
+
+  function on(event, handler) {
+    if (!listeners.has(event)) listeners.set(event, new Set());
+    listeners.get(event).add(handler);
+    return () => off(event, handler);
+  }
+  function off(event, handler) {
+    listeners.get(event)?.delete(handler);
+  }
+  function emit(event, payload) {
+    listeners.get(event)?.forEach(h => {
+      try { h(payload); }
+      catch (e) { console.error(`[EventBus] handler falló en "${event}"`, e); }
+    });
+  }
+  return { on, off, emit };
+})();
+
+/* ============================================================
+   MÓDULO 2 — Física compartida (helpers puros)
+   -------------------------------------------------------------
+   Funciones sin estado, sin DOM, testeables en aislamiento.
+   Aquí vive todo lo que varios dominios necesitan.
+   ============================================================ */
+App.Physics = (() => {
+  const P_ATM = 101325;
+  const R_AIR = 287.05;
+  const K_INSUL = 0.040;   // W/(m·K) lana mineral típica
+
+  // Propiedades del aire según temperatura (°C). Sutherland para viscosidad.
+  function airProps(T_C) {
+    const T = T_C + 273.15;
+    return {
+      rho: P_ATM / (R_AIR * T),
+      mu: 1.716e-5 * Math.pow(T / 273.15, 1.5) * (273.15 + 110.4) / (T + 110.4),
+      k: 0.0241 * Math.pow(T / 273.15, 0.9),
+      cp: 1005 + 0.1 * (T_C - 20),
+      Pr: 0.71
+    };
+  }
+
+  // Propiedades del agua (constantes aproximadas en rango 10-80°C)
+  function waterProps() {
+    return { rho: 990, mu: 6.5e-4, k: 0.63, cp: 4180, Pr: 4.3 };
+  }
+
+  // Factor de fricción de Darcy (Colebrook-White aproximado).
+  // Laminar (Re<2300): 64/Re (Hagen-Poiseuille).
+  // Turbulento: Haaland, explícito, buena aproximación.
+  function frictionFactor(Re, D) {
+    if (Re < 1) return 0.02;
+    if (Re < 2300) return 64 / Re;
+    const epsD = 0.000045 / D;
+    return 0.25 / Math.pow(Math.log10(epsD / 3.7 + 5.74 / Math.pow(Re, 0.9)), 2);
+  }
+
+  // Coeficiente convectivo interno (Dittus-Boelter + transición lineal).
+  function hInternal(Re, Pr, kAir, D) {
+    let Nu;
+    if (Re < 2300) Nu = 3.66;                        // laminar, flujo desarrollado
+    else if (Re < 4000) {
+      const Nl = 3.66, Nt = 0.023 * Math.pow(Re, 0.8) * Math.pow(Pr, 0.4);
+      const t = (Re - 2300) / 1700;
+      Nu = Nl * (1 - t) + Nt * t;                    // interpolación suave
+    } else Nu = 0.023 * Math.pow(Re, 0.8) * Math.pow(Pr, 0.4);
+    return Nu * kAir / D;
+  }
+
+  // Coeficiente global U de un tubo aislado (W/m²·K).
+  function overallU(hi, D, tIns) {
+    const ri = D / 2, re = ri + tIns;
+    const Ai_ratio = re / ri;
+    const Alm_ratio = re * Math.log(re / ri) / (re - ri);
+    const R = Ai_ratio / hi + Alm_ratio * tIns / K_INSUL + 1 / 5.0;
+    return 1 / R;
+  }
+
+  // Método NTU-Efectividad para un intercambiador simple.
+  // Devuelve ε ∈ [0,1): fracción del salto térmico máximo que se alcanza.
+  function ntuEffectiveness(NTU) { return 1 - Math.exp(-NTU); }
+
+  return { airProps, waterProps, frictionFactor, hInternal, overallU, ntuEffectiveness };
+})();
+
+/* ============================================================
+   MÓDULO 3 — Registry de dominios
+   -------------------------------------------------------------
+   Cada dominio es un OBJETO con:
+     - id, name, icon:      identificación para la UI
+     - schema:              lista de inputs que necesita
+     - solve(input):        función PURA. input plano -> output plano.
+                            NO toca el DOM. NO usa el EventBus.
+                            Solo devuelve { metrics, curves }.
+   ============================================================ */
+App.Registry = (() => {
+  const domains = new Map();
+
+  function register(domain) {
+    if (!domain.id) throw new Error('Dominio sin id');
+    if (typeof domain.solve !== 'function') throw new Error(`Dominio ${domain.id} sin solve()`);
+    domains.set(domain.id, domain);
+    App.EventBus.emit('registry.domain.added', domain.id);
+  }
+  function get(id) { return domains.get(id); }
+  function list() { return Array.from(domains.values()); }
+
+  return { register, get, list };
+})();
+
+/* ============================================================
+   DOMINIO 1 — Fluido (aire o agua)
+   -------------------------------------------------------------
+   Modelo: troncal + N ramales en paralelo.
+   Física: Darcy-Weisbach (pérdida de carga) + NTU (caída térmica).
+   ============================================================ */
+App.Registry.register({
+  id: 'fluid',
+  name: '💧 Fluido',
+  description: 'Transporte de aire o agua por conductos (troncal + ramales).',
+
+  schema: [
+    { id:'medium', label:'Medio', type:'select', default:'air',
+      options:[{value:'air',label:'Aire'},{value:'water',label:'Agua'}] },
+    { id:'Q',   label:'Caudal',           unit:'m³/h', default:250, type:'number' },
+    { id:'Tin', label:'Temp. entrada',    unit:'°C',   default:75,  type:'number' },
+    { id:'Tamb',label:'Temp. ambiente',   unit:'°C',   default:20,  type:'number' },
+    { id:'Dt',  label:'Ø troncal',        unit:'mm',   default:125, type:'number' },
+    { id:'Lt',  label:'Long. troncal',    unit:'m',    default:5,   type:'number' },
+    { id:'Dr',  label:'Ø ramal',          unit:'mm',   default:80,  type:'number' },
+    { id:'Lr',  label:'Long. ramal',      unit:'m',    default:6,   type:'number' },
+    { id:'N',   label:'Nº ramales',       unit:'uds',  default:4,   type:'number' },
+    { id:'tins',label:'Aislamiento',      unit:'mm',   default:25,  type:'number' },
+    { id:'n90', label:'Codos 90°',        unit:'uds',  default:2,   type:'number' },
+  ],
+
+  solve(input) {
+    const { airProps, waterProps, frictionFactor, hInternal, overallU, ntuEffectiveness } = App.Physics;
+    const props = input.medium === 'water' ? waterProps() : airProps((input.Tin + input.Tamb) / 2);
+
+    // ----- Función interna: resuelve un tramo de conducto -----
+    // Devuelve velocidad, Re, Δp, T_out, potencia entregada.
+    function segment(Q_m3h, D_mm, L_m, N_paralelo, Tin, Tamb, tIns_mm, zetaLocal) {
+      const D = D_mm / 1000;
+      const Qb = (Q_m3h / 3600) / N_paralelo;
+      const A  = Math.PI * D * D / 4;
+      const v  = Qb / A;
+      const Re = props.rho * v * D / props.mu;
+      const f  = frictionFactor(Re, D);
+      const mdot = props.rho * Qb;
+
+      // --- pérdida de carga (Darcy-Weisbach + locales) ---
+      const dpFric = f * (L_m / D) * props.rho * v * v / 2;
+      const dpLoc  = zetaLocal * props.rho * v * v / 2;
+      const dp     = dpFric + dpLoc;
+
+      // --- caída térmica (solo si hay salto T y no es agua) ---
+      let Tout = Tin;
+      if (input.medium === 'air') {
+        const hi = hInternal(Re, props.Pr, props.k, D);
+        const U  = overallU(hi, D, tIns_mm / 1000);
+        const Aext = 2 * Math.PI * (D / 2 + tIns_mm / 1000) * L_m;
+        const NTU = U * Aext / (mdot * props.cp);
+        const eps = ntuEffectiveness(NTU);
+        Tout = Tamb + (Tin - Tamb) * (1 - eps);
+      }
+
+      // --- potencia realmente entregada ---
+      const Qdel = mdot * props.cp * Math.abs(Tout - Tamb) * N_paralelo;
+
+      return { v, Re, f, dp, Tout, Qdel, mdot: mdot * N_paralelo, D, L: L_m };
+    }
+
+    // ----- Resolución del sistema: troncal + ramales -----
+    const zetaTroncal = 0.5;                              // entrada
+    const zetaRamal = 1.0 + input.n90 * 1.3 + 1 * 2.0;    // salida + codos + rejilla
+
+    const trunk = segment(input.Q, input.Dt, input.Lt, 1, input.Tin, input.Tamb, input.tins, zetaTroncal);
+    const branch = segment(input.Q, input.Dr, input.Lr, input.N, trunk.Tout, input.Tamb, input.tins, zetaRamal);
+
+    const dpTotal  = trunk.dp + branch.dp;
+    const Tout     = branch.Tout;
+    const Qdel     = branch.Qdel;
+    const velocidad = Math.max(trunk.v, branch.v);
+
+    // ----- Curvas para gráfica: T(x) para troncal y ramal -----
+    const curves = [];
+    if (input.medium === 'air') {
+      const mkCurve = (seg, T_amb, x0) => {
+        const pts = [];
+        for (let i = 0; i <= 40; i++) {
+          const t = i / 40;
+          const x = x0 + seg.L * t;
+          const U = overallU(hInternal(seg.Re, props.Pr, props.k, seg.D), seg.D, input.tins / 1000);
+          const Aext = 2 * Math.PI * (seg.D / 2 + input.tins / 1000) * seg.L;
+          const NTU = U * Aext / (seg.mdot / 1 * props.cp);
+          const T = T_amb + (input.Tin - T_amb) * Math.exp(-NTU * t * (seg === branch ? 1 : 0.3));
+          pts.push({ x, y: T });
+        }
+        return pts;
+      };
+      curves.push({ name:'Troncal', color:'#ff8c42', points: mkCurve(trunk, input.Tamb, 0) });
+      curves.push({ name:'Ramal',   color:'#4a9eff', points: mkCurve(branch, input.Tamb, input.Lt) });
+    }
+
+    return {
+      metrics: [
+        { label:'Velocidad máxima', value: velocidad.toFixed(2), unit:'m/s',
+          status: velocidad > 6 ? 'bad' : velocidad > 4 ? 'warn' : 'good' },
+        { label:'Reynolds', value: Math.round(Math.max(trunk.Re, branch.Re)), unit:'' },
+        { label:'Pérdida de carga', value: dpTotal.toFixed(0), unit:'Pa',
+          status: dpTotal > 150 ? 'bad' : dpTotal > 80 ? 'warn' : 'good' },
+        { label:'Temp. de llegada', value: Tout.toFixed(1), unit:'°C',
+          status: input.medium === 'air' && Tout < 30 ? 'bad' : 'good' },
+        { label:'Potencia entregada', value: Qdel.toFixed(0), unit:'W' },
+        { label:'Caudal másico', value: (branch.mdot * 3600).toFixed(1), unit:'kg/h' },
+      ],
+      curves
+    };
+  }
+});
+
+/* ============================================================
+   DOMINIO 2 — Eléctrico
+   -------------------------------------------------------------
+   Análogo matemático del fluido:
+     ΔV ↔ Δp      (potencial)
+     I  ↔ Q       (flujo)
+     R  ↔ R_h     (resistencia)
+   ============================================================ */
+App.Registry.register({
+  id: 'electric',
+  name: '⚡ Eléctrico',
+  description: 'Caída de tensión en línea con N cargas en paralelo.',
+
+  schema: [
+    { id:'material', label:'Material', type:'select', default:'cu',
+      options:[{value:'cu',label:'Cobre'},{value:'al',label:'Aluminio'}] },
+    { id:'V',   label:'Tensión fuente',   unit:'V',  default:230, type:'number' },
+    { id:'P',   label:'Potencia total',   unit:'W',  default:3000,type:'number' },
+    { id:'St',  label:'Sección troncal',  unit:'mm²',default:4,   type:'number' },
+    { id:'Lt',  label:'Long. troncal',    unit:'m',  default:10,  type:'number' },
+    { id:'Sr',  label:'Sección ramal',    unit:'mm²',default:2.5, type:'number' },
+    { id:'Lr',  label:'Long. ramal',      unit:'m',  default:15,  type:'number' },
+    { id:'N',   label:'Nº ramales',       unit:'uds',default:3,   type:'number' },
+  ],
+
+  solve(input) {
+    const RHO = { cu: 1.68e-8, al: 2.65e-8 };   // resistividad Ω·m a 20°C
+    const rho = RHO[input.material];
+
+    // I = P/V  (corriente total)
+    const I = input.P / input.V;
+
+    // Resistencia de cada tramo: R = ρ·L/A
+    const Rt = rho * input.Lt / (input.St * 1e-6);
+    const Rr = rho * input.Lr / (input.Sr * 1e-6);
+
+    // Caída de tensión
+    const dVt = I * Rt;
+    const dVr = (I / input.N) * Rr;    // cada ramal lleva I/N
+    const dV = dVt + dVr;
+
+    // Potencia perdida por efecto Joule
+    const PlossT = I * I * Rt;
+    const PlossR = input.N * Math.pow(I / input.N, 2) * Rr;
+    const Ploss = PlossT + PlossR;
+    const Pdel = input.P - Ploss;
+
+    // Densidad de corriente
+    const Jt = I / input.St;
+    const Jr = (I / input.N) / input.Sr;
+
+    return {
+      metrics: [
+        { label:'Corriente total',    value: I.toFixed(2), unit:'A' },
+        { label:'Caída de tensión',   value: dV.toFixed(2), unit:'V',
+          status: dV / input.V > 0.05 ? 'bad' : dV / input.V > 0.03 ? 'warn' : 'good' },
+        { label:'Caída relativa',     value: (dV / input.V * 100).toFixed(2), unit:'%',
+          status: dV / input.V > 0.05 ? 'bad' : dV / input.V > 0.03 ? 'warn' : 'good' },
+        { label:'Potencia disipada',  value: Ploss.toFixed(1), unit:'W' },
+        { label:'Potencia entregada', value: Pdel.toFixed(0), unit:'W' },
+        { label:'Densidad corriente', value: Math.max(Jt, Jr).toFixed(2), unit:'A/mm²',
+          status: Math.max(Jt, Jr) > 6 ? 'bad' : Math.max(Jt, Jr) > 4 ? 'warn' : 'good' },
+      ],
+      curves: [
+        { name:'Tensión', color:'#a78bfa', points: [
+          { x: 0, y: input.V },
+          { x: input.Lt, y: input.V - dVt },
+          { x: input.Lt + input.Lr, y: input.V - dV },
+        ]}
+      ]
+    };
+  }
+});
+
+/* ============================================================
+   DOMINIO 3 — Térmico (conducción multicapa)
+   -------------------------------------------------------------
+   Mismo esqueleto: una serie de resistencias térmicas.
+   Es la versión "serie" del modelo fluido/eléctrico.
+   ============================================================ */
+App.Registry.register({
+  id: 'thermal',
+  name: '🔥 Térmico',
+  description: 'Conducción de calor a través de N capas en serie.',
+
+  schema: [
+    { id:'Qdot',  label:'Flujo de calor',  unit:'W',    default:500, type:'number' },
+    { id:'Thot',  label:'Temp. lado caliente', unit:'°C', default:75, type:'number' },
+    { id:'Tcold', label:'Temp. lado frío',     unit:'°C', default:20, type:'number' },
+    { id:'k1',    label:'k capa 1',  unit:'W/m·K', default:0.040, type:'number' },
+    { id:'d1',    label:'Espesor 1', unit:'mm',    default:50,   type:'number' },
+    { id:'k2',    label:'k capa 2',  unit:'W/m·K', default:0.20,  type:'number' },
+    { id:'d2',    label:'Espesor 2', unit:'mm',    default:100,  type:'number' },
+    { id:'A',     label:'Área',      unit:'m²',    default:10,   type:'number' },
+  ],
+
+  solve(input) {
+    // R_th = d / (k · A)  para cada capa
+    const R1 = (input.d1 / 1000) / (input.k1 * input.A);
+    const R2 = (input.d2 / 1000) / (input.k2 * input.A);
+    const Rt = R1 + R2;
+
+    // ΔT = Q̇ · R_th  (equivalente a V = I · R)
+    const dT = input.Qdot * Rt;
+    const Tinterfaz = input.Thot - input.Qdot * R1;
+    const flux = input.Qdot / input.A;    // W/m²
+
+    // ¿Coincide el ΔT calculado con el salto real?
+    const dTreal = input.Thot - input.Tcold;
+
+    return {
+      metrics: [
+        { label:'R total',       value: Rt.toFixed(4), unit:'K/W' },
+        { label:'ΔT calculado',  value: dT.toFixed(1), unit:'K',
+          status: dT > dTreal * 1.2 ? 'bad' : 'good' },
+        { label:'ΔT disponible', value: dTreal.toFixed(1), unit:'K' },
+        { label:'T interfaz',    value: Tinterfaz.toFixed(1), unit:'°C' },
+        { label:'Flujo por área',value: flux.toFixed(1), unit:'W/m²' },
+        { label:'Potencia real', value: Math.min(input.Qdot, dTreal / Rt).toFixed(0), unit:'W' },
+      ],
+      curves: [
+        { name:'Perfil T(x)', color:'#4ade80', points: [
+          { x: 0, y: input.Thot },
+          { x: input.d1, y: Tinterfaz },
+          { x: input.d1 + input.d2, y: input.Thot - dT },
+        ]}
+      ]
+    };
+  }
+});
+
+/* ============================================================
+   MÓDULO 4 — Test framework mínimo
+   -------------------------------------------------------------
+   El framework más pequeño posible que sirve para lo que necesitamos.
+   Los tests validan la FÍSICA PURA, sin tocar la UI ni el DOM.
+   ============================================================ */
+App.Test = (() => {
+  const results = [];
+
+  function it(suite, name, fn) {
+    try {
+      fn();
+      results.push({ suite, name, ok: true });
+    } catch (e) {
+      results.push({ suite, name, ok: false, error: e.message });
+    }
+  }
+
+  const assert = {
+    close(actual, expected, tol, msg) {
+      if (Math.abs(actual - expected) > tol)
+        throw new Error(`${msg || ''}: esperado ${expected}±${tol}, obtenido ${actual}`);
+    },
+    equal(a, b, msg) {
+      if (a !== b) throw new Error(`${msg || ''}: esperado ${b}, obtenido ${a}`);
+    },
+    ok(cond, msg) {
+      if (!cond) throw new Error(msg || 'assertion falló');
+    }
+  };
+
+  function run() { return results; }
+
+  return { it, assert, run };
+})();
+
+/* ============================================================
+   MÓDULO 5 — Tests
+   -------------------------------------------------------------
+   Cada test explica en comentario QUÉ comprueba y POR QUÉ.
+   ============================================================ */
+(function registerTests() {
+  const { it, assert } = App.Test;
+  const P = App.Physics;
+
+  // -- Propiedades del aire --
+  it('Física/aire', 'Densidad del aire a 20°C ≈ 1.204 kg/m³', () => {
+    // Referencia estándar a 1 atm.
+    assert.close(P.airProps(20).rho, 1.204, 0.01);
+  });
+
+  it('Física/aire', 'Viscosidad del aire a 20°C ≈ 1.82e-5 Pa·s', () => {
+    assert.close(P.airProps(20).mu, 1.82e-5, 0.05e-5);
+  });
+
+  it('Física/aire', 'La densidad cae al subir T (gas ideal)', () => {
+    assert.ok(P.airProps(100).rho < P.airProps(20).rho);
+  });
+
+  // -- Factor de fricción --
+  it('Física/fricción', 'En laminar, f = 64/Re', () => {
+    // Para Re=1000, f debe ser exactamente 0.064
+    assert.close(P.frictionFactor(1000, 0.1), 64 / 1000, 1e-9);
+  });
+
+  it('Física/fricción', 'En turbulento, f decae con Re', () => {
+    const f1 = P.frictionFactor(1e4, 0.1);
+    const f2 = P.frictionFactor(1e5, 0.1);
+    assert.ok(f2 < f1, 'f(1e5) debería ser < f(1e4)');
+  });
+
+  // -- NTU --
+  it('Física/NTU', 'ε → 0 cuando NTU → 0', () => {
+    assert.close(P.ntuEffectiveness(0), 0, 1e-9);
+  });
+
+  it('Física/NTU', 'ε → 1 cuando NTU → ∞', () => {
+    assert.close(P.ntuEffectiveness(20), 1, 1e-6);
+  });
+
+  it('Física/NTU', 'ε es monótona creciente', () => {
+    assert.ok(P.ntuEffectiveness(2) > P.ntuEffectiveness(1));
+  });
+
+  // -- Dominio fluido: conservación y coherencia --
+  const fluid = App.Registry.get('fluid');
+  it('Fluido', 'Caudal cero ⇒ velocidad cero', () => {
+    const r = fluid.solve({ medium:'air', Q:0, Tin:75, Tamb:20,
+      Dt:125, Lt:5, Dr:80, Lr:6, N:4, tins:25, n90:2 });
+    // velocidad 0, pérdida 0
+    assert.close(parseFloat(r.metrics[0].value), 0, 1e-6);
+    assert.close(parseFloat(r.metrics[2].value), 0, 1e-6);
+  });
+
+  it('Fluido', 'A más longitud, más pérdida de carga', () => {
+    const base = { medium:'air', Q:250, Tin:75, Tamb:20,
+      Dt:125, Dr:80, N:4, tins:25, n90:2 };
+    const short = fluid.solve({ ...base, Lt:5, Lr:6 });
+    const long  = fluid.solve({ ...base, Lt:15, Lr:20 });
+    assert.ok(parseFloat(long.metrics[2].value) > parseFloat(short.metrics[2].value));
+  });
+
+  it('Fluido', 'La T de llegada baja si el recorrido es largo', () => {
+    const base = { medium:'air', Q:250, Tin:75, Tamb:20,
+      Dt:125, Dr:80, N:4, tins:25, n90:2 };
+    const short = fluid.solve({ ...base, Lt:5, Lr:6 });
+    const long  = fluid.solve({ ...base, Lt:5, Lr:30 });
+    assert.ok(parseFloat(long.metrics[3].value) < parseFloat(short.metrics[3].value));
+  });
+
+  it('Fluido', 'Más ramales ⇒ menos caudal por ramal ⇒ menos pérdida por ramal', () => {
+    // Aunque el total en troncal sube porque lleva todo el caudal.
+    const base = { medium:'air', Q:250, Tin:75, Tamb:20,
+      Dt:125, Lt:5, Dr:80, Lr:6, tins:25, n90:2 };
+    const r2 = fluid.solve({ ...base, N:2 });
+    const r6 = fluid.solve({ ...base, N:6 });
+    // La T de llegada con 6 ramales debe ser mayor o igual (menos caudal por ramal, más tiempo de residencia)
+    assert.ok(parseFloat(r6.metrics[3].value) >= parseFloat(r2.metrics[3].value));
+  });
+
+  // -- Dominio eléctrico: leyes básicas --
+  const elec = App.Registry.get('electric');
+  it('Eléctrico', 'V=230, P=2300 ⇒ I=10 A', () => {
+    const r = elec.solve({ material:'cu', V:230, P:2300,
+      St:4, Lt:10, Sr:2.5, Lr:15, N:3 });
+    assert.close(parseFloat(r.metrics[0].value), 10, 0.01);
+  });
+
+  it('Eléctrico', 'Más sección ⇒ menos caída de tensión', () => {
+    const base = { material:'cu', V:230, P:3000, Lt:10, Lr:15, N:3 };
+    const thin = elec.solve({ ...base, St:2.5, Sr:1.5 });
+    const thick = elec.solve({ ...base, St:6, Sr:4 });
+    assert.ok(parseFloat(thick.metrics[1].value) < parseFloat(thin.metrics[1].value));
+  });
+
+  it('Eléctrico', 'La energía se conserva: P_entregada = P_total − P_disipada', () => {
+    const r = elec.solve({ material:'cu', V:230, P:3000,
+      St:4, Lt:10, Sr:2.5, Lr:15, N:3 });
+    const ploss = parseFloat(r.metrics[3].value);
+    const pdel  = parseFloat(r.metrics[4].value);
+    assert.close(pdel + ploss, 3000, 1);
+  });
+
+  it('Eléctrico', 'El aluminio tiene más pérdidas que el cobre (mayor ρ)', () => {
+    const base = { V:230, P:3000, St:4, Lt:10, Sr:2.5, Lr:15, N:3 };
+    const cu = elec.solve({ ...base, material:'cu' });
+    const al = elec.solve({ ...base, material:'al' });
+    assert.ok(parseFloat(al.metrics[3].value) > parseFloat(cu.metrics[3].value));
+  });
+
+  // -- Dominio térmico: resistencia en serie --
+  const therm = App.Registry.get('thermal');
+  it('Térmico', 'Doble espesor ⇒ doble R_th', () => {
+    const base = { Qdot:500, Thot:75, Tcold:20, k1:0.04, k2:0.2, A:10 };
+    const r1 = therm.solve({ ...base, d1:50,  d2:100 });
+    const r2 = therm.solve({ ...base, d1:100, d2:100 });
+    const R1a = parseFloat(r1.metrics[0].value);
+    const R2a = parseFloat(r2.metrics[0].value);
+    // El incremento de R al doblar d1 debe ser igual a R1 original
+    assert.ok(R2a > R1a);
+  });
+
+  it('Térmico', 'ΔT = Q̇ · R_th (ley análoga a V=IR)', () => {
+    const r = therm.solve({ Qdot:500, Thot:75, Tcold:20, k1:0.04, d1:50, k2:0.2, d2:100, A:10 });
+    const R = parseFloat(r.metrics[0].value);
+    const dT = parseFloat(r.metrics[1].value);
+    assert.close(dT, 500 * R, 0.1);
+  });
+
+  it('Térmico', 'Buena conductividad ⇒ menos resistencia', () => {
+    const base = { Qdot:500, Thot:75, Tcold:20, d1:50, d2:100, A:10 };
+    const aislante = therm.solve({ ...base, k1:0.04, k2:0.04 });
+    const metal    = therm.solve({ ...base, k1:50,   k2:50 });
+    assert.ok(parseFloat(metal.metrics[0].value) < parseFloat(aislante.metrics[0].value));
+  });
+})();
+
+/* ============================================================
+   MÓDULO 6 — UI Adapter (adaptador hexagonal)
+   -------------------------------------------------------------
+   La UI NO conoce los dominios. Solo habla por EventBus y
+   consume el schema del dominio activo para autogenerarse.
+   ============================================================ */
+App.UI = (() => {
+  const bus = App.EventBus;
+  let activeId = null;
+
+  // --- Render de pestañas ---
+  function renderTabs() {
+    const nav = document.getElementById('domainTabs');
+    nav.innerHTML = '';
+    App.Registry.list().forEach(domain => {
+      const btn = document.createElement('button');
+      btn.textContent = domain.name;
+      btn.dataset.id = domain.id;
+      if (domain.id === activeId) btn.classList.add('active');
+      btn.addEventListener('click', () => bus.emit('ui.domain.selected', domain.id));
+      nav.appendChild(btn);
+    });
+  }
+
+  // --- Render del formulario de inputs a partir del schema ---
+  function renderInputs(domain, values) {
+    const container = document.getElementById('inputs');
+    container.innerHTML = '';
+    domain.schema.forEach(field => {
+      const wrap = document.createElement('div');
+      wrap.className = 'field';
+      const label = document.createElement('label');
+      label.textContent = field.label;
+      const inp = document.createElement(field.type === 'select' ? 'select' : 'input');
+
+      if (field.type === 'select') {
+        field.options.forEach(o => {
+          const opt = document.createElement('option');
+          opt.value = o.value; opt.textContent = o.label;
+          inp.appendChild(opt);
+        });
+        inp.value = values[field.id] ?? field.default;
+      } else {
+        inp.type = 'number';
+        inp.value = values[field.id] ?? field.default;
+        inp.step = 'any';
+      }
+      inp.addEventListener('input', () => {
+        const v = field.type === 'select' ? inp.value : parseFloat(inp.value);
+        bus.emit('ui.input.changed', { domainId: domain.id, key: field.id, value: v });
+      });
+
+      const unitWrap = document.createElement('div');
+      unitWrap.style.display = 'flex';
+      unitWrap.style.alignItems = 'center';
+      unitWrap.appendChild(inp);
+      if (field.unit) {
+        const u = document.createElement('span');
+        u.className = 'unit';
+        u.textContent = field.unit;
+        unitWrap.appendChild(u);
+      }
+      wrap.appendChild(label);
+      wrap.appendChild(unitWrap);
+      container.appendChild(wrap);
+    });
+  }
+
+  // --- Render de métricas ---
+  function renderMetrics(metrics) {
+    const container = document.getElementById('metrics');
+    container.innerHTML = '';
+    metrics.forEach(m => {
+      const el = document.createElement('div');
+      el.className = 'metric';
+      el.innerHTML = `<span class="metric-label">${m.label}</span>
+        <span class="metric-value ${m.status || ''}">${m.value}${m.unit ? ' ' + m.unit : ''}</span>`;
+      container.appendChild(el);
+    });
+  }
+
+  // --- Render de gráfica ---
+  function renderChart(curves) {
+    const canvas = document.getElementById('chart');
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const W = rect.width, H = rect.height;
+
+    if (!curves || curves.length === 0) {
+      ctx.fillStyle = '#8fa3b8';
+      ctx.font = '12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Sin gráfica para este dominio / configuración', W/2, H/2);
+      return;
+    }
+
+    // Rango global de puntos
+    const allPts = curves.flatMap(c => c.points);
+    const xMin = Math.min(...allPts.map(p => p.x));
+    const xMax = Math.max(...allPts.map(p => p.x)) || 1;
+    const yMin = Math.min(...allPts.map(p => p.y));
+    const yMax = Math.max(...allPts.map(p => p.y));
+    const yRange = (yMax - yMin) || 1;
+
+    const pad = { l: 50, r: 20, t: 20, b: 40 };
+    const pw = W - pad.l - pad.r, ph = H - pad.t - pad.b;
+    const xPix = x => pad.l + pw * (x - xMin) / (xMax - xMin || 1);
+    const yPix = y => pad.t + ph * (1 - (y - yMin) / yRange);
+
+    // Grid
+    ctx.font = '11px sans-serif';
+    ctx.strokeStyle = '#1e2a38';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 4; i++) {
+      const y = pad.t + ph * i / 4;
+      ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.stroke();
+      ctx.fillStyle = '#8fa3b8';
+      ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+      ctx.fillText((yMax - yRange * i / 4).toFixed(0), pad.l - 6, y);
+    }
+
+    // Curvas
+    curves.forEach(c => {
+      ctx.strokeStyle = c.color;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      c.points.forEach((p, i) => {
+        const X = xPix(p.x), Y = yPix(p.y);
+        if (i === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y);
+      });
+      ctx.stroke();
+    });
+
+    // Leyenda
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    curves.forEach((c, i) => {
+      ctx.fillStyle = c.color;
+      ctx.fillRect(W - pad.r - 100, pad.t + 6 + i * 16, 12, 3);
+      ctx.fillStyle = '#8fa3b8';
+      ctx.fillText(c.name, W - pad.r - 84, pad.t + i * 16);
+    });
+  }
+
+  // --- Render de tests ---
+  function renderTests() {
+    const results = App.Test.run();
+    const out = document.getElementById('testOutput');
+    const pass = results.filter(r => r.ok).length;
+    const fail = results.length - pass;
+
+    let html = `<div class="test-summary">
+      <span class="ok">✓ ${pass} pasan</span>
+      ${fail ? `<span class="fail">✗ ${fail} fallan</span>` : ''}
+      <span style="color:var(--muted)">(${results.length} tests)</span>
+    </div>`;
+
+    // Mostrar solo los que fallan, y un resumen de los que pasan
+    results.filter(r => !r.ok).forEach(r => {
+      html += `<div class="test-item fail">
+        <span class="icon">✗</span>
+        <span class="suite">${r.suite}</span>
+        <span class="name">${r.name}</span>
+        <span class="error">${r.error}</span>
+      </div>`;
+    });
+    if (fail === 0) {
+      html += `<div class="test-item"><span class="icon" style="color:var(--good)">✓</span>
+        <span style="color:var(--muted)">Todos los tests pasan — la física está coherente.</span></div>`;
+    }
+    out.innerHTML = html;
+  }
+
+  // --- Estado local (persistencia en memoria) ---
+  const state = {};    // { domainId: { key: value } }
+
+  function getState(domainId) {
+    if (!state[domainId]) {
+      const d = App.Registry.get(domainId);
+      state[domainId] = {};
+      d.schema.forEach(f => state[domainId][f.id] = f.default);
+    }
+    return state[domainId];
+  }
+
+  // --- Render maestro ---
+  function renderDomain(domainId) {
+    activeId = domainId;
+    const domain = App.Registry.get(domainId);
+    const values = getState(domainId);
+    renderTabs();
+    renderInputs(domain, values);
+    const result = domain.solve(values);
+    renderMetrics(result.metrics);
+    renderChart(result.curves);
+  }
+
+  // --- Suscripciones al bus (esto es la hexagonal en acción) ---
+  bus.on('ui.domain.selected', id => renderDomain(id));
+  bus.on('ui.input.changed', ({ domainId, key, value }) => {
+    state[domainId][key] = value;
+    if (domainId === activeId) renderDomain(domainId);
+  });
+
+  return { renderDomain, renderTests, init() {
+    const first = App.Registry.list()[0];
+    if (first) renderDomain(first.id);
+    renderTests();
+  }};
+})();
+
+/* ============================================================
+   MÓDULO 7 — Bootstrap
+   -------------------------------------------------------------
+   Arranca la UI y deja el sistema listo. Todo lo que ha pasado
+   antes ha sido registrarse en el Registry y en el Test.
+   ============================================================ */
+document.addEventListener('DOMContentLoaded', () => {
+  App.UI.init();
+  console.log('%c[Física modular] Sistema arrancado.', 'color:#4ade80;font-weight:bold');
+  console.log('Dominios registrados:', App.Registry.list().map(d => d.id).join(', '));
+  console.log('Para añadir un dominio nuevo: App.Registry.register({ id, name, schema, solve })');
+});
+</script>
+</body>
+</html>

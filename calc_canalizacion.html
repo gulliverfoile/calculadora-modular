@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculadora de canalización de aire caliente</title>
+<style>
+  :root {
+    --bg: #0f1419; --card: #1a2332; --border: #2a3a4a;
+    --text: #e6eef6; --muted: #8fa3b8;
+    --accent: #ff8c42; --accent2: #4a9eff;
+    --good: #4ade80; --bad: #f87171;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg); color: var(--text); margin: 0; padding: 20px; line-height: 1.5;
+  }
+  .container { max-width: 1200px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin: 0 0 .3rem 0; }
+  .subtitle { color: var(--muted); margin-bottom: 1.5rem; font-size: .9rem; }
+  .grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 16px; margin-bottom: 16px;
+  }
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px;
+  }
+  .card h2 { font-size: 1rem; margin: 0 0 14px 0; font-weight: 600; color: var(--accent); }
+  .card.b h2 { color: var(--accent2); }
+  .inner-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 700px) { .inner-grid { grid-template-columns: 1fr; } }
+  .field { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; margin-bottom: 9px; }
+  .field label { font-size: .82rem; color: var(--muted); }
+  .field input {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); padding: 6px 10px; width: 110px; font-size: .88rem;
+    font-family: inherit; text-align: right;
+  }
+  .field input:focus { outline: none; border-color: var(--accent); }
+  .unit { color: var(--muted); font-size: .72rem; margin-left: 4px; }
+  .results { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+  @media (max-width: 700px) { .results { grid-template-columns: 1fr; } }
+  .result-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .result-card h3 { font-size: .95rem; margin: 0 0 12px 0; font-weight: 600; }
+  .result-card.a h3 { color: var(--accent); }
+  .result-card.b h3 { color: var(--accent2); }
+  .metric {
+    display: flex; justify-content: space-between; padding: 7px 0;
+    border-bottom: 1px solid rgba(255,255,255,.05); font-size: .88rem;
+  }
+  .metric:last-child { border-bottom: none; }
+  .metric-label { color: var(--muted); }
+  .metric-value { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-weight: 500; }
+  .verdict {
+    margin-top: 16px; padding: 14px 18px;
+    background: rgba(74,158,255,.08); border-left: 3px solid var(--accent2);
+    border-radius: 6px; font-size: .9rem;
+  }
+  .verdict strong { color: var(--accent2); }
+  canvas {
+    width: 100%; height: 320px; background: var(--card);
+    border: 1px solid var(--border); border-radius: 12px; margin-top: 16px; display: block;
+  }
+  .good { color: var(--good); }
+  .bad { color: var(--bad); }
+  .legend { display: flex; gap: 20px; font-size: .82rem; color: var(--muted); margin-top: 10px; justify-content: center; }
+  .legend span::before {
+    content: ''; display: inline-block; width: 14px; height: 3px;
+    vertical-align: middle; margin-right: 6px; border-radius: 2px;
+  }
+  .legend .la::before { background: var(--accent); }
+  .legend .lb::before { background: var(--accent2); }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Calculadora de canalización de aire caliente</h1>
+  <p class="subtitle">Compara un conducto único largo frente a un diseño ramificado (troncal + ramales).</p>
+
+  <div class="card" style="margin-bottom:16px;">
+    <h2>⚙️ Parámetros comunes</h2>
+    <div class="inner-grid">
+      <div>
+        <div class="field"><label>Caudal de aire de la estufa</label>
+          <div><input type="number" id="Q" value="250" step="10"><span class="unit">m³/h</span></div></div>
+        <div class="field"><label>Temperatura de salida</label>
+          <div><input type="number" id="Tin" value="75" step="5"><span class="unit">°C</span></div></div>
+        <div class="field"><label>Temperatura ambiente destino</label>
+          <div><input type="number" id="Tamb" value="20" step="1"><span class="unit">°C</span></div></div>
+      </div>
+      <div>
+        <div class="field"><label>Espesor de aislamiento</label>
+          <div><input type="number" id="tins" value="25" step="5"><span class="unit">mm</span></div></div>
+        <div class="field"><label>Codos 90° (por ramal)</label>
+          <div><input type="number" id="n90" value="2" step="1"><span class="unit">uds</span></div></div>
+        <div class="field"><label>Codos 45° (por ramal)</label>
+          <div><input type="number" id="n45" value="0" step="1"><span class="unit">uds</span></div></div>
+        <div class="field"><label>Rejillas / salidas</label>
+          <div><input type="number" id="ngr" value="1" step="1"><span class="unit">uds</span></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card a">
+      <h2>🔴 Escenario A — Conducto único</h2>
+      <div class="field"><label>Longitud del conducto</label>
+        <div><input type="number" id="A_L" value="30" step="1"><span class="unit">m</span></div></div>
+      <div class="field"><label>Diámetro interior</label>
+        <div><input type="number" id="A_D" value="100" step="5"><span class="unit">mm</span></div></div>
+    </div>
+    <div class="card b">
+      <h2>🔵 Escenario B — Ramificado</h2>
+      <div class="field"><label>Longitud del troncal</label>
+        <div><input type="number" id="B_Lt" value="5" step="1"><span class="unit">m</span></div></div>
+      <div class="field"><label>Diámetro del troncal</label>
+        <div><input type="number" id="B_Dt" value="125" step="5"><span class="unit">mm</span></div></div>
+      <div class="field"><label>Número de ramales</label>
+        <div><input type="number" id="B_N" value="4" step="1"><span class="unit">uds</span></div></div>
+      <div class="field"><label>Longitud de cada ramal</label>
+        <div><input type="number" id="B_Lr" value="6" step="1"><span class="unit">m</span></div></div>
+      <div class="field"><label>Diámetro de cada ramal</label>
+        <div><input type="number" id="B_Dr" value="80" step="5"><span class="unit">mm</span></div></div>
+    </div>
+  </div>
+
+  <div class="results">
+    <div class="result-card a"><h3>Resultados — Conducto único</h3><div id="outA"></div></div>
+    <div class="result-card b"><h3>Resultados — Ramificado</h3><div id="outB"></div></div>
+  </div>
+
+  <div class="verdict" id="verdict"></div>
+
+  <canvas id="chart"></canvas>
+  <div class="legend"><span class="la">Conducto único</span><span class="lb">Ramificado (troncal + ramal)</span></div>
+</div>
+
+<script>
+const P_ATM = 101325, R_AIR = 287.05;
+const K_INSUL = 0.040, H_OUT = 5.0;
+
+function airProps(T_C) {
+  const T = T_C + 273.15;
+  return {
+    rho: P_ATM / (R_AIR * T),
+    mu: 1.716e-5 * Math.pow(T/273.15, 1.5) * (273.15 + 110.4) / (T + 110.4),
+    k: 0.0241 * Math.pow(T/273.15, 0.9),
+    cp: 1005 + 0.1 * (T_C - 20),
+    Pr: 0.71
+  };
+}
+
+function frictionFactor(Re, D) {
+  if (Re < 1) return 0.02;
+  if (Re < 2300) return 64 / Re;
+  const epsD = 0.000045 / D;
+  return 0.25 / Math.pow(Math.log10(epsD/3.7 + 5.74/Math.pow(Re, 0.9)), 2);
+}
+
+function hInternal(Re, Pr, kAir, D) {
+  let Nu;
+  if (Re < 2300) Nu = 3.66;
+  else if (Re < 4000) {
+    const Nl = 3.66, Nt = 0.023 * Math.pow(Re, 0.8) * Math.pow(Pr, 0.4);
+    const t = (Re - 2300) / 1700;
+    Nu = Nl * (1 - t) + Nt * t;
+  } else {
+    Nu = 0.023 * Math.pow(Re, 0.8) * Math.pow(Pr, 0.4);
+  }
+  return Nu * kAir / D;
+}
+
+function overallU(hi, D, tIns) {
+  const ri = D / 2, re = ri + tIns;
+  const Ai_ratio = re / ri;
+  const Alm_ratio = re * Math.log(re / ri) / (re - ri);
+  const R = Ai_ratio / hi + Alm_ratio * tIns / K_INSUL + 1 / H_OUT;
+  return 1 / R;
+}
+
+function solveDuct(Q_m3h, Tin, Tamb, Dmm, tInsMm, L, N, n90, n45, ngr) {
+  const D = Dmm / 1000, tIns = tInsMm / 1000;
+  const Qb = (Q_m3h / 3600) / N;
+  const props = airProps((Tin + Tamb) / 2);
+  const A = Math.PI * D * D / 4;
+  const v = Qb / A;
+  const Re = props.rho * v * D / props.mu;
+  const f = frictionFactor(Re, D);
+  const hi = hInternal(Re, props.Pr, props.k, D);
+  const U = overallU(hi, D, tIns);
+  const mdot = props.rho * Qb;
+  const rExt = D / 2 + tIns;
+  const Aext = 2 * Math.PI * rExt * L;
+  const NTU = U * Aext / (mdot * props.cp);
+  const eps = 1 - Math.exp(-NTU);
+  const Tout = Tamb + (Tin - Tamb) * (1 - eps);
+  const Qdel = mdot * props.cp * (Tout - Tamb);
+
+  const zeta = 0.5 + 1.0 + n90 * 1.3 + n45 * 0.4 + ngr * 2.0;
+  const dpf = f * (L / D) * props.rho * v * v / 2;
+  const dpl = zeta * props.rho * v * v / 2;
+  const dp = dpf + dpl;
+
+  return { v, Re, f, U, NTU, eps, Tout, dp, Qdel: Qdel * N, mdot: mdot * N,
+           D, L, N, Tin, Tamb };
+}
+
+function num(id) { return parseFloat(document.getElementById(id).value); }
+
+function calcA() {
+  return solveDuct(num('Q'), num('Tin'), num('Tamb'), num('A_D'), num('tins'),
+                   num('A_L'), 1, num('n90'), num('n45'), num('ngr'));
+}
+
+function calcB() {
+  const Q = num('Q'), Tin = num('Tin'), Tamb = num('Tamb'), tins = num('tins');
+  const n90 = num('n90'), n45 = num('n45'), ngr = num('ngr');
+  const trunk = solveDuct(Q, Tin, Tamb, num('B_Dt'), tins, num('B_Lt'), 1, 0, 0, 0);
+  const branch = solveDuct(Q, trunk.Tout, Tamb, num('B_Dr'), tins,
+                           num('B_Lr'), num('B_N'), n90, n45, ngr);
+  return {
+    trunk, branch,
+    dp: trunk.dp + branch.dp,
+    Tout: branch.Tout,
+    Qdel: branch.Qdel,
+    mdot: branch.mdot,
+    vT: trunk.v, vB: branch.v,
+    ReT: trunk.Re, ReB: branch.Re
+  };
+}
+
+function fmt(n, d = 1) {
+  if (!isFinite(n)) return '—';
+  const a = Math.abs(n);
+  if (a >= 1000) return n.toFixed(0);
+  if (a >= 100) return n.toFixed(d);
+  return n.toFixed(d);
+}
+
+function metric(label, value, cls = '') {
+  return `<div class="metric"><span class="metric-label">${label}</span>
+    <span class="metric-value ${cls}">${value}</span></div>`;
+}
+
+function render() {
+  const A = calcA(), B = calcB();
+
+  document.getElementById('outA').innerHTML =
+    metric('Velocidad del aire', fmt(A.v) + ' m/s', A.v > 6 ? 'bad' : A.v > 4 ? '' : 'good') +
+    metric('Reynolds', fmt(A.Re, 0)) +
+    metric('Factor de fricción', A.f.toFixed(4)) +
+    metric('Pérdida de carga', fmt(A.dp, 0) + ' Pa (' + (A.dp / 9.81).toFixed(1) + ' mmH₂O)',
+           A.dp > 150 ? 'bad' : A.dp > 80 ? '' : 'good') +
+    metric('Temperatura de llegada', fmt(A.Tout) + ' °C',
+           A.Tout < 30 ? 'bad' : A.Tout < 40 ? '' : 'good') +
+    metric('Potencia útil entregada', fmt(A.Qdel, 0) + ' W') +
+    metric('Caudal másico', fmt(A.mdot * 3600, 1) + ' kg/h');
+
+  document.getElementById('outB').innerHTML =
+    metric('Velocidad troncal / ramal', fmt(B.vT) + ' / ' + fmt(B.vB) + ' m/s',
+           B.vT > 6 || B.vB > 6 ? 'bad' : 'good') +
+    metric('Reynolds troncal / ramal', fmt(B.ReT, 0) + ' / ' + fmt(B.ReB, 0)) +
+    metric('Pérdida de carga total', fmt(B.dp, 0) + ' Pa (' + (B.dp / 9.81).toFixed(1) + ' mmH₂O)',
+           B.dp > 150 ? 'bad' : B.dp > 80 ? '' : 'good') +
+    metric('Temperatura de llegada', fmt(B.Tout) + ' °C',
+           B.Tout < 30 ? 'bad' : B.Tout < 40 ? '' : 'good') +
+    metric('Potencia útil entregada', fmt(B.Qdel, 0) + ' W') +
+    metric('Caudal másico', fmt(B.mdot * 3600, 1) + ' kg/h');
+
+  let txt;
+  const dpRatio = A.dp / B.dp;
+  const qRatio = B.Qdel / A.Qdel;
+  if (B.dp < A.dp && B.Qdel > A.Qdel) {
+    txt = `<strong>El diseño ramificado gana en todo:</strong> necesita ${fmt(dpRatio,1)}× menos presión y entrega ${fmt(qRatio,2)}× más calor útil al destino.`;
+  } else if (B.dp < A.dp) {
+    txt = `<strong>El ramificado reduce la pérdida de carga ${fmt(dpRatio,1)}×.</strong> La entrega de calor es comparable.`;
+  } else if (B.Qdel > A.Qdel) {
+    txt = `<strong>El ramificado entrega ${fmt(qRatio,2)}× más calor</strong>, pero con más pérdida de carga. Valora un ventilador auxiliar.`;
+  } else {
+    txt = `Los dos diseños son comparables. Ajusta diámetros y longitudes.`;
+  }
+  document.getElementById('verdict').innerHTML = txt;
+
+  drawChart(A, B);
+}
+
+function drawChart(A, B) {
+  const canvas = document.getElementById('chart');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const W = rect.width, H = rect.height;
+  const pad = { l: 55, r: 20, t: 20, b: 40 };
+  const pw = W - pad.l - pad.r, ph = H - pad.t - pad.b;
+
+  const xMax = Math.max(A.L, B.trunk.L + B.branch.L, 20);
+  const yMin = 15, yMax = 85;
+  const xPix = x => pad.l + pw * x / xMax;
+  const yPix = T => pad.t + ph * (1 - (T - yMin) / (yMax - yMin));
+
+  // Grid + labels Y
+  ctx.font = '11px -apple-system, sans-serif';
+  ctx.fillStyle = '#8fa3b8';
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for (let T = 20; T <= 80; T += 10) {
+    const y = yPix(T);
+    ctx.strokeStyle = '#1e2a38';
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.stroke();
+    ctx.fillStyle = '#8fa3b8';
+    ctx.fillText(T + '°C', pad.l - 6, y);
+  }
+  // X labels
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  const xStep = xMax <= 15 ? 3 : xMax <= 30 ? 5 : 10;
+  for (let x = 0; x <= xMax; x += xStep) {
+    const px = xPix(x);
+    ctx.strokeStyle = '#1e2a38';
+    ctx.beginPath(); ctx.moveTo(px, pad.t); ctx.lineTo(px, H - pad.b); ctx.stroke();
+    ctx.fillStyle = '#8fa3b8';
+    ctx.fillText(x + 'm', px, H - pad.b + 6);
+  }
+
+  // Axes
+  ctx.strokeStyle = '#4a5a6a'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, H - pad.b);
+  ctx.lineTo(W - pad.r, H - pad.b); ctx.stroke();
+
+  // Curve A
+  const plotCurve = (T_in, T_amb, NTU, L, x0, color) => {
+    ctx.strokeStyle = color; ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    const N = 80;
+    for (let i = 0; i <= N; i++) {
+      const t = i / N;
+      const x = x0 + L * t;
+      const T = T_amb + (T_in - T_amb) * Math.exp(-NTU * t);
+      if (i === 0) ctx.moveTo(xPix(x), yPix(T));
+      else ctx.lineTo(xPix(x), yPix(T));
+    }
+    ctx.stroke();
+  };
+
+  plotCurve(A.Tin, A.Tamb, A.NTU, A.L, 0, '#ff8c42');
+  // Branched: trunk first, then branch
+  plotCurve(B.trunk.Tin, B.trunk.Tamb, B.trunk.NTU, B.trunk.L, 0, '#4a9eff');
+  plotCurve(B.branch.Tin, B.branch.Tamb, B.branch.NTU, B.branch.L,
+            B.trunk.L, '#4a9eff');
+}
+
+document.querySelectorAll('input').forEach(el => {
+  el.addEventListener('input', render);
+});
+render();
+</script>
+</body>
+</html>
