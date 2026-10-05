@@ -1,0 +1,407 @@
+========================================================================
+LABORATORIO UNIFICADO — qué es y cómo funciona
+========================================================================
+Autor:      (tú)
+Versión:    1.0
+Fecha:      2026-10-05
+Archivo:    laboratorio.html  (autocontenido, se abre con doble clic)
+
+------------------------------------------------------------------------
+1. QUÉ ES
+------------------------------------------------------------------------
+Una plataforma en un único archivo HTML que reúne ocho simuladores
+independientes pero combinables, todos construidos sobre la misma
+arquitectura hexagonal:
+
+  - Motor electromagnético 2D (FDTD / Yee / modo TM)
+  - Vista de color (onda → percepción humana)
+  - Percepción visual humana (condiciones y compensación)
+  - Ojo animal sobre el campo EM (traducción espectral)
+  - Foto → ojo animal (traducción de imagen RGB)
+  - Simulador EM completo (presets + CPML)
+  - Simulador acústico 2D (medios planetarios)
+  - Simulador sísmico 2D (manto terrestre, PREM simplificado)
+
+Cada módulo se activa y desactiva desde una barra superior. El
+orquestador se encarga de montarlos, resolver dependencias y llamar a
+sus bucles de animación. Los módulos no se conocen entre sí: se
+comunican por eventos a través de un bus.
+
+No hay dependencias externas. No hay build step.
+
+------------------------------------------------------------------------
+2. POR QUÉ EXISTE
+------------------------------------------------------------------------
+- Para reunir en un solo lugar cuatro exploraciones que compartían la
+  misma idea: la misma ecuación con distintos nombres.
+
+    EM (FDTD)      ∂E/∂t = (1/ε) ∇×H,  ∂H/∂t = -(1/μ) ∇×E
+    Acústico       ∂v/∂t = -(1/ρ) ∇p,  ∂p/∂t = -ρc² ∇·v
+    Sísmico        ∂v/∂t = (1/ρ) ∇·σ,  ∂σ/∂t = C : ∇v
+
+  Los tres son la misma EDP hiperbólica de primer orden resuelta con
+  leapfrog sobre grid escalonado. Cambia el rango del tensor, cambia
+  la relación constitutiva, cambia el significado. El solver es el
+  mismo patrón.
+
+- Para demostrar que la arquitectura hexagonal también funciona con
+  simuladores, no solo con calculadoras. Módulo = objeto con schema
+  declarativo (depende, api, mount, frame, unmount).
+
+- Para tener una plataforma donde añadir un módulo nuevo sea escribir
+  un objeto, no tocar el resto.
+
+------------------------------------------------------------------------
+3. ARQUITECTURA
+------------------------------------------------------------------------
+Patrón: hexagonal (puertos y adaptadores) + orquestador de módulos.
+
+    +------------------------------------------------------+
+    |                     Orchestrator                     |
+    |  - Barra de toggles                                  |
+    |  - activate(id) / deactivate(id)                     |
+    |  - Resuelve dependencias en tiempo de activación     |
+    |  - Bucle global que llama a frame(ctx) de cada uno   |
+    +-----------------------+------------------------------+
+                            |
+                    EventBus global
+                            |
+    +-----------------------v------------------------------+
+    |                       Módulos                        |
+    |  - Cada uno con su contenedor DOM propio             |
+    |  - Se montan/desmontan por evento                    |
+    |  - Exponen opcionalmente una api                     |
+    |  - Consumen APIs de sus dependencias (ctx.deps)      |
+    +------------------------------------------------------+
+
+Dentro de los módulos "grandes" (EM-FDTD completo, acústico, sísmico)
+hay un segundo EventBus local. Es deliberado: su lógica interna
+(StartSimUC, ResetSimUC, etc.) no necesita mezclarse con el bus global.
+La única frontera con el exterior es mount / unmount.
+
+------------------------------------------------------------------------
+4. PIEZAS COMPARTIDAS (una sola vez en el archivo)
+------------------------------------------------------------------------
+EventBus
+    Mediador. Métodos:
+      on(evento, handler)      → devuelve función para desuscribir
+      off(evento, handler)
+      emit(evento, payload)
+
+wavelengthToRGB(nm)
+    Longitud de onda en nm → color RGB aproximado (Dan Bruton 1996).
+    Aproxima la respuesta de los conos humanos. No es física exacta,
+    es una curva estándar de conversión.
+
+rgbToApproxSpectrum(r,g,b)
+    Inversión heurística: dado un RGB, estimar cuánta energía hay en
+    cada una de las 5 bandas que maneja el sistema (380, 450, 550,
+    650, 780 nm). No es inversión física. Es un puente declarado para
+    poder traducir una foto RGB a "lo que vería otro animal".
+
+ANIMALS
+    Tabla compartida con 11 animales y sus canales espectrales.
+    Antes estaba duplicada en ojo-animal y foto-animal. Ahora vive
+    en un único lugar y los dos módulos la consumen.
+
+ModuleRegistry
+    Diccionario id → módulo. Métodos: add, get, all, clear.
+
+Orchestrator
+    Gestiona el ciclo de vida de los módulos. Métodos principales:
+      boot()            → pinta los toggles y activa los por defecto
+      activate(id)      → monta el módulo y sus dependencias
+      deactivate(id)    → desmonta (comprueba que nadie dependa de él)
+      _startLoop()      → bucle global con requestAnimationFrame
+
+------------------------------------------------------------------------
+5. LOS OCHO MÓDULOS
+------------------------------------------------------------------------
+Cada uno se declara con:
+
+    ModuleRegistry.add(id, {
+      nombre,                // etiqueta para el toggle
+      depende: [...],        // ids de los que necesita api
+      activoPorDefecto,      // bool
+      api: { ... },          // opcional. Lo que otros pueden consumir
+      mount(ctx),            // construye el DOM y engancha listeners
+      frame(ctx),            // opcional. Se llama en cada frame
+      unmount(ctx),          // opcional. Limpieza al desactivar
+    });
+
+Lista completa:
+
+  ⚡ em-motor (FDTD)
+     Motor electromagnético 2D. Grid escalonado. Modo TM (Ez, Hx, Hy).
+     Genera el campo que consumen em-color y ojo-animal.
+     api: getFields, getFieldsByWavelength, setScenario, setMode,
+          setWavelength, setModeFull, reset, getMode, getScenario.
+     frame: avanza 3 pasos por frame y actualiza la línea de info.
+
+  🎨 em-color
+     depende: em-motor
+     Traduce el campo EM a color visible combinando las componentes
+     de 450, 550, 650 nm con los colores de Bruton. El "color" no
+     está en la onda: está en el ojo.
+
+  👁 percepcion
+     Simulador de condiciones visuales humanas: degeneración macular
+     seca y húmeda, glaucoma, cataratas, retinosis pigmentaria,
+     daltonismo (3 subtipos), hemianopsia (2 lados), retinopatía
+     diabética, astigmatismo (2 orientaciones). Compara lado a lado
+     normal vs simulado. Botón de parpadeo A/B para diferencias sutiles.
+     unmount: limpia el setInterval del parpadeo.
+
+  🦅 ojo-animal
+     depende: em-motor
+     Traduce el campo EM al sistema visual de 11 animales (humano,
+     perro, gato, abeja, ave, búho, rata, pulpo, camaleón, mantis,
+     serpiente de fosa). El UV va en magenta como marca de "aquí hay
+     señal que tú no tienes".
+     api: getAnimals, getCurrentAnimal.
+
+  📷 foto-animal
+     Igual que ojo-animal pero trabaja sobre píxeles, no sobre campos.
+     Carga una foto (o la escena por defecto generada) y la traduce a
+     lo que vería cada animal aplicando su matriz de sensibilidad
+     espectral. Declara explícitamente que es traducción, no física.
+     api: getAnimals, getCurrentAnimal, hasImage.
+
+  ⚡ em-fdtd (completo)
+     Simulador EM 2D con CPML, PEC, y cuatro presets didácticos:
+     vacío, lámina dieléctrica, guía de onda, cristal fotónico.
+     Sondas, control de Courant, pasos por frame, inyección por
+     fuente puntual o por línea (onda plana).
+     unmount: para el bucle y limpia la referencia.
+
+  🔊 acustico
+     Ondas de presión en cuatro atmósferas planetarias (Tierra, Marte,
+     Venus, Titán). Velocidad del sonido y densidad calculadas de gas
+     ideal. Dos modos de frontera: cámara (paredes rígidas) o abierto
+     (capa absorbente). Botón para escuchar el medio: corre N pasos,
+     toma la traza del receptor, la remuestrea a 44100 Hz y la
+     reproduce por Web Audio con filtro paso-bajo según la absorción
+     del medio.
+     unmount: para el bucle y cierra el AudioContext.
+
+  🌍 sismico
+     Ecuaciones de la elastodinámica 2D sobre modelo PREM simplificado
+     (13 capas, 0–2890 km) o sobre capas personalizadas. Fuente tipo
+     explosión (P) o fuerza puntual (P+S). Sismogramas en vivo.
+     unmount: para el bucle.
+
+------------------------------------------------------------------------
+6. DEPENDENCIAS
+------------------------------------------------------------------------
+    em-motor   ──┬──> em-color
+                 └──> ojo-animal
+
+    (todos los demás son autónomos)
+
+Al activar un módulo con dependencias, el Orchestrator las activa
+antes, y marca sus toggles como activos en la barra superior. Al
+desactivar, comprueba que ningún otro módulo activo dependa de él;
+si lo hay, avisa y no desmonta.
+
+------------------------------------------------------------------------
+7. FLUJO DE UN MÓDULO
+------------------------------------------------------------------------
+Usuario hace clic en un toggle
+        │
+        v
+Orchestrator.activate(id)
+        │
+        ├── resuelve dependencias recursivamente
+        ├── crea un <div class="module"> contenedor
+        ├── construye ctx = { bus, orchestrator, container, deps }
+        └── llama a mod.mount(ctx)
+                │
+                v
+        El módulo construye su DOM y engancha listeners
+        (usa ctx.container.querySelector(...), nunca document.getElementById)
+
+En cada frame:
+        Orchestrator._startLoop()
+                │
+                v
+        for cada módulo activo con frame:
+            mod.frame(ctx)
+                │
+                v
+        El módulo lee su propio estado y pinta su canvas
+
+Al desactivar:
+        Orchestrator.deactivate(id)
+                │
+        ├── comprueba que nadie dependa de él
+        ├── llama a mod.unmount(ctx)  → cleanup
+        └── elimina el contenedor del DOM
+
+------------------------------------------------------------------------
+8. CÓMO AÑADIR UN MÓDULO NUEVO
+------------------------------------------------------------------------
+Al final de las secciones, dentro de un IIFE para no ensuciar el
+scope, escribe:
+
+    (() => {
+      ModuleRegistry.add('mi-modulo', {
+        nombre: '🎯 Mi módulo',
+        depende: [],                  // o ['em-motor'] si lo necesitas
+        activoPorDefecto: false,
+        api: { /* opcional */ },
+        mount(ctx) {
+          ctx.container.innerHTML = `
+            <h2>Mi módulo</h2>
+            <canvas id="mi-canvas"></canvas>
+          `;
+          const canvas = ctx.container.querySelector('#mi-canvas');
+          const g = canvas.getContext('2d');
+          // ... enganchar listeners ...
+        },
+        frame(ctx) {
+          // opcional: se llama en cada frame
+        },
+        unmount(ctx) {
+          // opcional: parar timers, cerrar AudioContext, etc.
+        },
+      });
+    })();
+
+Recarga la página y aparece como toggle nuevo. Si quieres que otro
+módulo consuma su api, añade su id a depende: [...] del consumidor.
+
+------------------------------------------------------------------------
+9. CÓMO EXTRAERLO A ARCHIVOS
+------------------------------------------------------------------------
+Cada bloque "(() => { ... })()" va a su propio archivo .js:
+
+    event-bus.js
+    utilities.js        (wavelengthToRGB, rgbToApproxSpectrum, ANIMALS)
+    registry.js
+    orchestrator.js
+    modules/em-motor.js
+    modules/em-color.js
+    modules/percepcion.js
+    modules/ojo-animal.js
+    modules/foto-animal.js
+    modules/em-fdtd.js
+    modules/acustico.js
+    modules/sismico.js
+    tests.js
+    main.js
+
+En el HTML:
+    <script type="module" src="main.js"></script>
+
+main.js importa el resto. No hace falta bundler.
+
+------------------------------------------------------------------------
+10. TESTS
+------------------------------------------------------------------------
+Se ejecutan al cargar la página y muestran su resultado en la sección
+"🧪 Resultados de tests" al final. Consola del navegador si se quiere
+detalle.
+
+Cubren:
+
+  - EventBus: on/emit recibe payload; off desuscribe.
+  - wavelengthToRGB: los tres casos dominantes (verde, rojo, azul).
+  - rgbToApproxSpectrum: reparto de energía para rojo, verde, azul,
+    blanco y negro.
+  - ModuleRegistry: add/get/all/clear.
+  - Presencia de los ocho módulos.
+  - Dependencias: em-color y ojo-animal dependen de em-motor;
+    foto-animal y los grandes son autónomos.
+  - Tabla ANIMALS: al menos 11 animales con canales, rgb y nota.
+    Ningún canal con pesos todos a cero.
+  - Física acústica: Tierra c ≈ 343, Marte c ≈ 240.
+  - CFL: dt con Courant 0.5 cumple la condición en 2D.
+  - Orchestrator: existe la clase.
+
+Los tests son la especificación viva del sistema: si tocas un módulo
+o una constante física y rompes algo, aparecerá en rojo.
+
+------------------------------------------------------------------------
+11. DECISIONES DE DISEÑO
+------------------------------------------------------------------------
+Un solo EventBus global.
+    El Orchestrator usa un EventBus para comunicar ciclo de vida de
+    módulos (module:activated, module:deactivated). Los módulos
+    pueden suscribirse a él si quieren, pero no es obligatorio.
+
+EventBus interno en los módulos grandes.
+    Los tres módulos más complejos (em-fdtd completo, acústico,
+    sísmico) mantienen su propio bus interno porque fueron escritos
+    como aplicaciones autocontenidas. Mezclarlos con el bus global
+    habría requerido reescribir sus casos de uso. Se decidió
+    dejarlos aislados: la única frontera es mount/unmount.
+
+querySelector en vez de getElementById.
+    Los módulos consultan su DOM a partir de ctx.container, no del
+    documento entero. Así pueden convivir dos módulos que usen el
+    mismo id sin colisionar (aunque en la práctica cada uno usa ids
+    propios para no liar).
+
+Tabla ANIMALS compartida.
+    Antes estaba duplicada en ojo-animal y foto-animal (una vez por
+    cada). Ahora vive en un único lugar. Los tests la validan como
+    estructura y como contenido.
+
+unmount explícito.
+    Cada módulo que crea timers, bucles o AudioContext debe limpiarlos
+    en unmount. El Orchestrator lo llama antes de eliminar el
+    contenedor. Si no se hiciera, quedarían bucles huérfanos
+    corriendo.
+
+------------------------------------------------------------------------
+12. LIMITACIONES CONOCIDAS
+------------------------------------------------------------------------
+- Los módulos grandes tienen su propio bucle con requestAnimationFrame.
+  No usan el frame(ctx) del Orchestrator. Conviven bien, pero no
+  comparten un único bucle global. Refactorizarlos sería un cambio
+  grande para poca ganancia.
+
+- Las tablas físicas (medios planetarios, PREM) son datos embebidos.
+  No hay carga desde archivo externo.
+
+- Los simuladores están pensados para didáctica, no para ingeniería.
+  Los regímenes cubiertos son los razonables; los patológicos (valores
+  negativos, cero, NaN) no están guardados.
+
+- El motor FDTD compartido (em-motor) usa unidades normalizadas y un
+  solver más simple que el em-fdtd completo. Son dos implementaciones
+  distintas a propósito: uno es para el ojo animal, el otro para
+  didáctica electromagnética con presets.
+
+- Todo el estado vive en memoria. Refrescar la página reinicia todo.
+
+- No hay persistencia de la configuración de cada módulo. Al
+  desactivar y reactivar, un módulo vuelve a su estado inicial.
+
+------------------------------------------------------------------------
+13. REFERENCIAS
+------------------------------------------------------------------------
+Analogía entre dominios:
+  - Ohm ↔ Hagen-Poiseuille ↔ Fourier ↔ elasticidad lineal
+  - Modelado "lumped element" en ingeniería
+  - Teoría constructal (Bejan) para redes de distribución
+  - Ley de Murray para ramificaciones óptimas
+
+Física de los simuladores:
+  - FDTD: Kane Yee (1966). Grid escalonado para Maxwell.
+  - CPML: Roden & Gedney (2000). Capa absorbente de convolución.
+  - Acústica: lineal, sin pérdidas, fronteras Neumann (cámara) o
+    esponja (abierto).
+  - Sísmico: Virieux (1986). Diferencias finitas en velocidad-esfuerzo
+    para elastodinámica 2D. Modelo PREM simplificado.
+  - Visión: Dan Bruton (1996) para nm → RGB. Curvas de sensibilidad
+    de conos tomadas de literatura estándar.
+
+Fuentes pedagógicas:
+  - El principio de que "el color no está en la onda, está en el ojo"
+    se ilustra en em-color, ojo-animal y foto-animal.
+  - El principio de que "el solver es el mismo, cambia el tensor" se
+    ilustra con em-motor, acustico y sismico.
+
+========================================================================
+FIN DEL DOCUMENTO
