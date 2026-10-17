@@ -1,0 +1,407 @@
+===============================================================================
+  MÓDULO PLASMA RF — FDTD 2D
+  Documentación técnica
+===============================================================================
+
+-------------------------------------------------------------------------------
+1. QUÉ ES
+-------------------------------------------------------------------------------
+
+Un módulo JavaScript autocontenido que simula la propagación de ondas
+electromagnéticas en un plasma frío sin colisiones, en 2D, mediante el método
+FDTD (Finite-Difference Time-Domain) sobre una malla escalonada de Yee.
+
+El objetivo es didáctico: visualizar el fenómeno de CUTOFF (reflexión de la
+onda cuando la frecuencia de plasma local supera la frecuencia de la onda) y
+la propagación normal cuando ocurre lo contrario.
+
+No es un código de producción para fusión nuclear. No simula calentamiento,
+turbulencia, transporte ni absorción cíclotron. Simula una cosa concreta y la
+simula bien: propagación y reflexión de ondas EM en un medio con permitividad
+dependiente de la densidad de plasma.
+
+El módulo es independiente: no depende de ningún otro módulo del laboratorio.
+Se puede cargar solo, o registrarse en el ModuleRegistry si está disponible.
+
+
+-------------------------------------------------------------------------------
+2. QUÉ HACE
+-------------------------------------------------------------------------------
+
+2.1 FÍSICA QUE SIMULA
+
+  - Propagación de ondas EM en 2D (modo TM: campo Ez, campos Hx y Hy).
+  - Permitividad relativa dependiente de la densidad de plasma local:
+        eps_r(i,j) = 1 - (omega_p(i,j) / omega)^2
+    donde omega es la frecuencia de la fuente y omega_p es la frecuencia de
+    plasma local, proporcional a la raíz de la densidad.
+
+  - Tres regímenes:
+        omega > omega_p  ->  eps_r > 0  ->  propagación normal
+        omega = omega_p  ->  eps_r = 0  ->  resonancia (singularidad numérica)
+        omega < omega_p  ->  eps_r < 0  ->  cutoff, onda evanescente
+
+  - Reflexión total en la región de cutoff: la onda no penetra, se refleja.
+  - Absorción en los bordes mediante CPML (Convolutional Perfectly Matched
+    Layer) para evitar reflexiones espurias en el contorno del dominio.
+  - Paredes PEC (Perfect Electric Conductor) opcionales en los bordes, que
+    fuerzan Ez = 0 y actúan como espejo.
+
+2.2 PERFILES DE DENSIDAD INCLUIDOS
+
+  - vacuum:    sin plasma (omega_p = 0 en todo el dominio). Referencia.
+  - slab:      banda uniforme de plasma en el centro del dominio.
+  - gradient:  densidad lineal, cero en los bordes, máxima en el centro.
+  - gaussian:  densidad gaussiana centrada, similar al borde de un tokamak.
+
+2.3 CONTROLES DE USUARIO
+
+  - Selector de perfil de densidad.
+  - Escala de densidad (0 a 3x): multiplica omega_p, cambia el régimen.
+  - Frecuencia de la fuente (0.02 a 0.10 en unidades normalizadas).
+  - Paredes PEC on/off.
+  - Botones: Iniciar, Pausar, Reiniciar, Paso a paso.
+  - Panel de información: omega de la fuente, omega_p máxima, ratio omega_p/omega,
+    porcentaje de celdas en cutoff, estado (propagación o cutoff).
+
+2.4 VISUALIZACIÓN
+
+  - Campo Ez en tiempo real, con escala automática por frame.
+  - Rojo/amarillo para Ez positivo, azul para Ez negativo.
+  - Tinte verde en las celdas donde eps_r < 0 (región de cutoff).
+  - Paredes PEC en gris oscuro.
+  - Fuente marcada con un círculo rojo.
+
+
+-------------------------------------------------------------------------------
+3. CÓMO LO HACE
+-------------------------------------------------------------------------------
+
+3.1 ECUACIONES DE MAXWELL EN 2D TM
+
+  Se asume invariancia en la dirección y (∂/∂y = 0), y se resuelve el modo TM
+  con componente Ez y componentes Hx, Hy. Las ecuaciones son:
+
+        ∂Hx/∂t = -(1/mu) · ∂Ez/∂z
+        ∂Hy/∂t = +(1/mu) · ∂Ez/∂x
+        ∂Ez/∂t = (1/eps) · (∂Hy/∂x - ∂Hx/∂z)
+
+  En unidades normalizadas: c = eps0 = mu0 = 1.
+
+3.2 MALLA DE YEE
+
+  Los campos se almacenan en una malla escalonada: Ez en el centro de la celda,
+  Hx y Hy en las caras. Esto garantiza que las derivadas espaciales sean de
+  segundo orden y que la divergencia se conserve automáticamente.
+
+  El update se hace en dos fases por paso temporal:
+        1. Actualizar H usando el Ez del paso anterior.
+        2. Actualizar Ez usando el H recién calculado.
+  Este esquema es explícito y condicionalmente estable (ver CFL abajo).
+
+3.3 CONDICIÓN CFL
+
+  Para 2D, el paso temporal debe cumplir:
+
+        dt <= S · min(dx, dz) / (c · sqrt(2))
+
+  donde S es el número de Courant (0 < S <= 1). El módulo usa S = 0.5 por
+  defecto, que deja margen de estabilidad. Con c = 1, dx = dz = 1:
+
+        dt = 0.5 / sqrt(2) ≈ 0.3536
+
+  Si se viola CFL, el solver explota numéricamente. El test correspondiente
+  verifica que dt cumple la condición.
+
+3.4 PERMITIVIDAD DEL PLASMA
+
+  La permitividad relativa se calcula a partir de la densidad de plasma:
+
+        omega_p(i,j) = densityFn(i,j) · densityScale
+        eps_r(i,j)   = 1 - (omega_p / omega)^2
+
+  Se guarda el valor CRUDO en el array epsr. Esto es importante: el valor
+  crudo puede ser negativo o cero, y se usa para la visualización (tinte verde)
+  y para los tests.
+
+3.5 CLAMP DE eps_r EN EL UPDATE
+
+  En resonancia (eps_r = 0), el update de Ez dividiría por cero. En un plasma
+  real, las colisiones evitan el cero exacto (eps_r sería complejo). Como este
+  modelo no incluye colisiones, se aplica un clamp numérico:
+
+        si |eps_r| < 0.05:
+            eps_r = +0.05 si eps_r >= 0
+            eps_r = -0.05 si eps_r < 0
+
+  El clamp solo se aplica en el update, no en el valor guardado. Así la física
+  mostrada (valor crudo) es correcta, y el solver no explota (valor clampeado).
+  Es una aproximación didáctica, no un esquema ADE completo.
+
+3.6 CPML (CONVOLUTIONAL PML)
+
+  Capa absorbente en los bordes del dominio para simular espacio abierto. Se
+  usa la formulación de Taflove & Hagness con conductividad graduada:
+
+        sigma(s) = sigma_max · (s/L)^m
+        sigma_max = -(m+1) · ln(R0) / (2L)   con R0 = 1e-6
+        b = exp(-sigma · dt)
+        c = b - 1
+
+  donde L es el número de celdas de la capa (12 por defecto) y m el orden
+  polinómico (3 por defecto). Las variables psi_* acumulan la historia de las
+  derivadas espaciales y se actualizan en cada paso.
+
+  El test de CPML verifica que el campo en el borde es al menos 10 veces menor
+  que en el centro tras 400 pasos, lo que confirma que absorbe.
+
+3.7 FUENTE
+
+  Fuente puntual suave (soft) en la posición (source.x, source.z). Se inyecta
+  sumando al Ez existente, no sobreescribiendo. La forma de onda es:
+
+        fn(t) = amp · (1 - exp(-t/30)) · sin(omega · t)
+
+  La rampa (1 - exp(-t/30)) evita el transitorio brusco de encender un seno en
+  t = 0. El factor 30 es aproximadamente 4.5 periodos con omega = 0.05·2π,
+  suficiente para estabilizar la fuente.
+
+  La fuente es monocromática a propósito: como eps_r depende de omega, un pulso
+  con espectro ancho haría que eps_r fuera incorrecto para la mayoría de las
+  frecuencias del pulso. Con una sola frecuencia, el cálculo de eps_r es válido.
+
+3.8 ORDEN DEL UPDATE
+
+  Cada paso hace, en este orden:
+        1. Update H (Hx, Hy) usando Ez.
+        2. Update E (Ez) usando H, con clamp de eps_r y máscara PEC.
+        3. Inyección de la fuente.
+        4. Avance del tiempo.
+
+  La fuente va después de E para que el valor inyectado no sea sobreescrito
+  por el update. El PEC va dentro del update de E (forzando val = 0) para que
+  sea incondicional.
+
+
+-------------------------------------------------------------------------------
+4. LIMITACIONES
+-------------------------------------------------------------------------------
+
+4.1 FÍSICA NO INCLUIDA
+
+  - Permitividad escalar: no captura el tensor completo del plasma magnetizado
+    (componentes off-diagonal eps_xy, eps_xz). Para eso haría falta modo TE o 3D,
+    o un esquema con tensor anisotrópico.
+
+  - Sin colisiones: eps_r es real, no complejo. No hay absorción resonante ni
+    calentamiento. El modelo solo captura propagación y reflexión.
+
+  - Sin acoplamiento con las ecuaciones de fluido: el plasma no responde al
+    campo. No hay inestabilidades, turbulencia ni confinamiento.
+
+  - 2D: no captura geometría toroidal real ni efectos 3D.
+
+4.2 FÍSICA QUE SÍ CAPTURA (HONESTAMENTE)
+
+  - Cutoff: reflexión total cuando omega < omega_p.
+  - Propagación con permitividad reducida cuando omega > omega_p.
+  - Resonancia como singularidad numérica (con clamp).
+  - Reflexión en paredes PEC.
+  - Absorción en contornos abiertos (CPML).
+
+4.3 LO QUE NO ES
+
+  - No es un código de producción para diseño de tokamaks.
+  - No sustituye a códigos como AORSA, TORIC o GENRAY (espectrales, con tensor
+    completo, para calentamiento RF real).
+  - No es un simulador de fusión. Es un simulador de ondas en plasma.
+
+
+-------------------------------------------------------------------------------
+5. CÓMO USARLO
+-------------------------------------------------------------------------------
+
+5.1 STANDALONE
+
+  El archivo plasma-standalone.html incluye:
+        - Mock de ModuleRegistry y EventBus.
+        - El módulo plasma completo.
+        - Bootstrap que monta el módulo al cargar.
+        - Botón para ejecutar los tests.
+
+  Pasos:
+        1. Guardar plasma-standalone.html.
+        2. Abrir con doble clic en el navegador.
+        3. La consola (F12) debe mostrar "[bootstrap] Módulo plasma montado".
+        4. Pulsar "Iniciar" para ver la simulación.
+        5. Pulsar "Ejecutar tests" para verificar los 14 tests.
+
+5.2 EN EL LABORATORIO
+
+  El módulo se registra con ModuleRegistry.add('plasma', {...}). Aparece en el
+  nav como "🌡 Plasma RF (FDTD)". Se activa con el checkbox. No tiene
+  dependencias, así que se puede activar solo.
+
+  La API pública queda expuesta en c._plasma:
+        - engine: instancia de PlasmaFDTD
+        - source: objeto de la fuente
+        - stopLoop(): detiene el loop
+        - applyProfile(): reaplica el perfil actual
+        - DENSITY_PROFILES: referencia a los perfiles
+
+5.3 PRUEBA MANUAL DE CUTOFF
+
+  1. Perfil "Slab uniforme", densidad 1x, frecuencia 0.05. Pulsar Iniciar.
+     Resultado esperado: banda verde central (cutoff), onda reflejada.
+
+  2. Mismo perfil, frecuencia 0.10. Reiniciar.
+     Resultado esperado: sin banda verde, onda atraviesa (omega_p < omega).
+
+  3. Perfil "Vacío". Reiniciar.
+     Resultado esperado: onda circular sin obstáculo.
+
+  4. Slab con densidad 3x. Reiniciar.
+     Resultado esperado: banda verde más ancha, reflexión más intensa.
+
+  Si algo no cuadra con esto, es señal de un problema en el módulo.
+
+
+-------------------------------------------------------------------------------
+6. ESTRUCTURA DEL CÓDIGO
+-------------------------------------------------------------------------------
+
+El código está en un IIFE (Immediately Invoked Function Expression) para
+aislar el scope. Se divide en cinco secciones:
+
+  SECCIÓN 1 — PlasmaFDTD (clase)
+      Motor FDTD. Métodos:
+        - constructor(nx, nz, opts): inicializa arrays y CPML.
+        - _buildCPML(): calcula coeficientes b, c.
+        - setEpsilonFromDensity(fn, omega): llena epsr.
+        - setPEC(fn): llena máscara PEC.
+        - reset(): pone todos los campos a cero.
+        - step(source): un paso FDTD.
+        - getField(), isCutoff(i,j): accesores.
+
+  SECCIÓN 2 — DENSITY_PROFILES (objeto)
+      Cuatro funciones de densidad: vacuum, slab, gradient, gaussian.
+
+  SECCIÓN 3 — PlasmaVisualizer (clase)
+      Renderiza el campo Ez en un canvas, con tinte verde para cutoff y gris
+      para PEC. Escala automática por frame.
+
+  SECCIÓN 4 — Registro del módulo
+      ModuleRegistry.add('plasma', {...}). Define mount() y unmount().
+      mount() construye la UI, instancia el motor y el visualizador, y conecta
+      los eventos. unmount() detiene el loop.
+
+  SECCIÓN 5 — PlasmaTests (objeto)
+      Método run() que ejecuta 14 tests y devuelve { ok, fail, results }.
+      Expuesto en window.PlasmaTests.
+
+  Guard al final: si ModuleRegistry no existe, expone PlasmaFDTD y
+  DENSITY_PROFILES en window para uso standalone.
+
+
+-------------------------------------------------------------------------------
+7. TESTS
+-------------------------------------------------------------------------------
+
+14 tests agrupados por área:
+
+  CFL (2):
+    1. dt <= S·dx/(c·sqrt(2)).
+    2. 100 pasos con fuente no explota en vacío.
+
+  Permitividad y cutoff (4):
+    3. eps_r = 1 en vacío.
+    4. eps_r < 0 cuando omega_p > omega.
+    5. eps_r > 0 y < 1 cuando omega_p < omega.
+    6. eps_r = 0 en resonancia (omega_p = omega).
+
+  Estabilidad (2):
+    7. eps_r < 0 no explota en 200 pasos.
+    8. resonancia (eps_r = 0) no produce NaN.
+
+  Perfiles (4):
+    9.  vacuum: omega_p = 0 en todo el grid.
+    10. slab: plasma solo en banda central.
+    11. gradient: 0 en bordes, máximo en centro.
+    12. gaussian: máximo en centro, decae hacia bordes.
+
+  PEC (1):
+    13. Ez forzado a 0 tras 50 pasos en la celda PEC.
+
+  CPML (1):
+    14. Campo en borde al menos 10x menor que en centro tras 400 pasos.
+
+  Los tests se pueden ejecutar desde la consola:
+        PlasmaTests.run()
+
+  O desde el botón "Ejecutar tests" del standalone. Devuelven un objeto con
+  el conteo y el detalle de cada uno.
+
+
+-------------------------------------------------------------------------------
+8. DECISIONES DE DISEÑO
+-------------------------------------------------------------------------------
+
+8.1 POR QUÉ INDEPENDIENTE
+
+  El módulo em-motor (FDTD compartido del laboratorio) asume eps escalar
+  positiva. Modificarlo para soportar eps negativo obligaría a tocar el bucle
+  de actualización que también usan em-color y ojo-animal. El riesgo de romper
+  tres módulos para añadir uno no compensa. Un módulo independiente duplica
+  ~80 líneas de solver pero elimina el riesgo.
+
+8.2 POR QUÉ FUENTE MONOCROMÁTICA
+
+  eps_r depende de omega. Un pulso tiene espectro ancho, así que eps_r sería
+  incorrecto para la mayoría de sus componentes. Con una sola frecuencia, el
+  cálculo es válido. La rampa suave evita el transitorio de encendido.
+
+8.3 POR QUÉ CLAMP EN VEZ DE ADE
+
+  Un esquema ADE (Auxiliary Differential Equation) modela la dispersión del
+  plasma de forma rigurosa, incluyendo la resonancia sin singularidad. Pero
+  requiere ecuaciones adicionales y más estado. Para un módulo didáctico, el
+  clamp a ±0.05 es suficiente y honesto: evita el NaN y documenta que es una
+  aproximación. La visualización usa el valor crudo, así que la física mostrada
+  no está distorsionada.
+
+8.4 POR QUÉ CPML Y NO CAPA PERDIDA SIMPLE
+
+  Una capa con amortiguamiento simple refleja parte de la onda, sobre todo en
+  incidencia oblicua. CPML está diseñada para absorción angular amplia y es el
+  estándar en FDTD. El coste es ~30 líneas extra y cuatro arrays auxiliares.
+  Vale la pena para que el contorno no contamine la física del interior.
+
+8.5 POR QUÉ EVENTOS NO ATOMIZADOS
+
+  El módulo emite un solo evento, 'config:changed', cuando cambia el perfil,
+  la densidad o la frecuencia. No hay consumidores externos ahora mismo. Si en
+  el futuro se añade un módulo que reaccione al campo de plasma, se atomizará
+  entonces (por ejemplo, 'field:updated', 'cutoff:changed'). Atomizar sin
+  consumidores es ruido.
+
+
+-------------------------------------------------------------------------------
+9. REFERENCIAS
+-------------------------------------------------------------------------------
+
+  - Taflove & Hagness, "Computational Electrodynamics: The Finite-Difference
+    Time-Domain Method", 3rd ed. Artech House, 2005. (FDTD, CPML, Yee grid)
+
+  - Stix, "Waves in Plasmas", AIP Press, 1992. (Propagación en plasma,
+    permitividad, cutoff, resonancia)
+
+  - Chen, "Introduction to Plasma Physics and Controlled Fusion", 3rd ed.
+    Springer, 2016. (Frecuencia de plasma, física básica)
+
+  - Virieux, "P-SV wave propagation in heterogeneous media: Velocity-stress
+    finite-difference method", Geophysics 51(4), 1986. (Referencia para el
+    esquema de diferencias finitas, usada también en el módulo sísmico)
+
+===============================================================================
+  Fin de la documentación
+===============================================================================
