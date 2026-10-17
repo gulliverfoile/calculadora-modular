@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plasma RF — Módulo Standalone</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #0a0a1a; color: #e0e0ff; min-height: 100vh;
+    background-image: radial-gradient(ellipse at center, #1a1a3a 0%, #050510 100%);
+    padding: 20px;
+  }
+  h1 {
+    text-align: center; margin-bottom: 6px; font-size: clamp(1.4rem, 4vw, 1.9rem);
+    background: linear-gradient(135deg, #66ddff, #44ff88, #ff66aa);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .subtitle { text-align: center; color: #aabbdd; margin-bottom: 20px; font-size: 0.88rem; }
+
+  #plasma-host { max-width: 1280px; margin: 0 auto; }
+
+  .module {
+    background: rgba(20,20,50,0.85); border: 1px solid rgba(100,100,200,0.3);
+    border-radius: 16px; padding: 20px; backdrop-filter: blur(10px);
+  }
+  .module h2 { font-size: 1.05rem; color: #aaccff; margin-bottom: 10px; }
+  .module .desc { font-size: 0.85rem; color: #8899bb; margin-bottom: 12px; line-height: 1.5; }
+  .module .desc code { background: rgba(100,100,200,0.2); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+  canvas { width: 100%; height: auto; border-radius: 8px; background: #04040a; display: block; }
+  .controls, .sim-controls { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .controls button, .sim-controls button {
+    padding: 8px 14px; border-radius: 6px; border: 1px solid rgba(150,150,220,0.4);
+    background: rgba(30,30,60,0.9); color: #fff; cursor: pointer; font-size: 0.85rem;
+    font-family: inherit;
+  }
+  .controls button:hover, .sim-controls button:hover { background: rgba(50,50,90,0.9); }
+  .sim-controls button { flex: 1; min-width: 70px; }
+  .sim-controls button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .param-group { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+  .param-group label { flex: 0 0 170px; font-size: 0.85rem; color: #aaccff; }
+  .param-group input[type="range"] { flex: 1; }
+  .param-group span { flex: 0 0 70px; text-align: right; color: #ffcc00; font-family: monospace; font-size: 0.85rem; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 750px) { .grid-2 { grid-template-columns: 1fr; } }
+  .info-line {
+    font-family: 'Courier New', monospace; font-size: 0.75rem; color: #99bbee;
+    margin-top: 8px; background: #0a0a18; padding: 8px; border-radius: 6px;
+    line-height: 1.5;
+  }
+  select {
+    padding: 8px 12px; border-radius: 6px;
+    background: rgba(30,30,60,0.9); color: #fff;
+    border: 1px solid rgba(150,150,220,0.4); font-size: 0.9rem;
+    font-family: inherit; cursor: pointer; width: 100%; margin-bottom: 8px;
+  }
+  .status { text-align: center; padding: 8px; border-radius: 6px; font-weight: 600; margin-top: 8px; font-size: 0.85rem; }
+  .status.ok { color: #66ffa0; }
+  .hud { display: flex; justify-content: space-between; font-size: 0.75rem; color: #8899bb; font-family: monospace; margin-top: 4px; gap: 8px; flex-wrap: wrap; }
+  .module-toggle {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 14px; border-radius: 8px;
+    background: rgba(30,30,60,0.9); border: 1px solid rgba(150,150,220,0.4);
+    cursor: pointer; font-size: 0.88rem; user-select: none;
+  }
+  .module-toggle input { accent-color: #66ddff; }
+
+  #test-panel {
+    max-width: 1280px; margin: 20px auto 0;
+    background: rgba(20,20,50,0.85); border: 1px solid rgba(100,100,200,0.3);
+    border-radius: 16px; padding: 16px;
+    font-family: 'Courier New', monospace; font-size: 0.78rem;
+  }
+  #test-panel h3 { color: #aaccff; margin-bottom: 10px; font-size: 0.95rem; }
+  .test-ok { color: #66ffa0; }
+  .test-fail { color: #ff6666; }
+
+  #toolbar { max-width: 1280px; margin: 20px auto; text-align: center; }
+  #toolbar button {
+    padding: 10px 20px; border-radius: 8px; border: 1px solid rgba(150,150,220,0.4);
+    background: linear-gradient(135deg, #3a3a7a, #2a2a5a); color: #fff;
+    cursor: pointer; font-size: 0.9rem; font-family: inherit;
+  }
+  #toolbar button:hover { background: linear-gradient(135deg, #4a4a8a, #3a3a6a); }
+</style>
+</head>
+<body>
+
+<h1>🌡 Plasma RF — Standalone</h1>
+<p class="subtitle">Módulo independiente. Mismo código que en el laboratorio, sin dependencias externas.</p>
+
+<div id="plasma-host"></div>
+
+<div id="toolbar">
+  <button id="run-tests-btn">▶ Ejecutar tests</button>
+</div>
+
+<section id="test-panel" style="display:none">
+  <h3>🧪 Resultados</h3>
+  <div id="test-list"></div>
+</section>
+
+<script>
+/* ============================================================================
+   MOCK: ModuleRegistry mínimo
+   El módulo llama a ModuleRegistry.add() al cargarse. Con este mock, se
+   registra igual que en el laboratorio, sin necesitar el orquestador completo.
+   ============================================================================ */
+const ModuleRegistry = (() => {
+  const modules = new Map();
+  return {
+    add(id, def) { modules.set(id, { id, ...def }); },
+    get(id) { return modules.get(id); },
+    all() { return [...modules.values()]; },
+    clear() { modules.clear(); },
+  };
+})();
+
+/* ============================================================================
+   EventBus mínimo (el módulo lo usa si está disponible)
+   ============================================================================ */
+class EventBus {
+  constructor() { this.listeners = new Map(); }
+  on(evt, cb) {
+    if (!this.listeners.has(evt)) this.listeners.set(evt, new Set());
+    this.listeners.get(evt).add(cb);
+    return () => this.off(evt, cb);
+  }
+  off(evt, cb) { if (this.listeners.has(evt)) this.listeners.get(evt).delete(cb); }
+  emit(evt, payload) {
+    const cbs = this.listeners.get(evt);
+    if (cbs) cbs.forEach(cb => { try { cb(payload); } catch (e) { console.error(e); } });
+  }
+}
+
+/* ============================================================================
+   MÓDULO PLASMA — código íntegro, sin cambios
+   ============================================================================ */
+(function () {
+  'use strict';
+
+  // ============================================================
+  // SECCIÓN 1 — MOTOR FDTD PARA PLASMA (2D TM, Yee)
+  // ============================================================
+
+  /**
+   * Solver FDTD para propagación de ondas EM en un plasma frío sin colisiones.
+   *
+   * ECUACIONES (2D TM: Ez, Hx, Hy, con ∂/∂y = 0):
+   *   ∂Hx/∂t = -(1/μ) ∂Ez/∂z
+   *   ∂Hy/∂t = +(1/μ) ∂Ez/∂x
+   *   ∂Ez/∂t = (1/ε) (∂Hy/∂x - ∂Hx/∂z)
+   *
+   * PERMITIVIDAD DEL PLASMA:
+   *   ε_r(ω) = 1 - (ωp/ω)²
+   *   ωp = sqrt(n·e² / (m_e·ε₀))   [frecuencia de plasma local]
+   *
+   *   - ω > ωp  →  ε_r > 0  →  propagación
+   *   - ω = ωp  →  ε_r = 0  →  resonancia (singularidad numérica)
+   *   - ω < ωp  →  ε_r < 0  →  cutoff, onda evanescente, reflexión total
+   *
+   * LIMITACIONES (documentadas, no bugs):
+   *   - ε escalar: no captura acoplamiento off-diagonal (ε_×) ni absorción cíclotron
+   *   - Fuente monocromática: ε_r se calcula a la frecuencia de la fuente
+   *   - Sin colisiones: ε_r real, no complejo → no hay absorción resonante
+   *   - 2D TM: suficiente para cutoff/reflexión, insuficiente para calentamiento
+   */
+  class PlasmaFDTD {
+    constructor(nx, nz, opts = {}) {
+      this.nx = nx;
+      this.nz = nz;
+      this.dx = opts.dx ?? 1;
+      this.dz = opts.dz ?? 1;
+      this.courant = opts.courant ?? 0.5;
+
+      // CFL 2D: dt ≤ S·min(dx,dz)/(c·√2). En unidades c=1.
+      this.dt = this.courant * Math.min(this.dx, this.dz) / Math.SQRT2;
+
+      const N = nx * nz;
+      this.ez = new Float32Array(N);
+      this.hx = new Float32Array(N);
+      this.hy = new Float32Array(N);
+
+      this.psi_ez_x = new Float32Array(N);
+      this.psi_ez_y = new Float32Array(N);
+      this.psi_hx_y = new Float32Array(N);
+      this.psi_hy_x = new Float32Array(N);
+
+      this.epsr = new Float32Array(N).fill(1);
+      this.pec = new Uint8Array(N);
+
+      this.pmlCells = opts.pmlCells ?? 15;
+      this.pmlOrder = opts.pmlOrder ?? 3;
+      this._buildCPML();
+
+      this.time = 0;
+      this.stepCount = 0;
+    }
+
+    _buildCPML() {
+      const { nx, nz, dt, pmlCells: L, pmlOrder: m } = this;
+      const sigmaMax = -(m + 1) * Math.log(1e-6) / (2 * L);
+
+      this.bx = new Float32Array(nx);
+      this.cx = new Float32Array(nx);
+      this.by = new Float32Array(nz);
+      this.cy = new Float32Array(nz);
+
+      for (let i = 0; i < nx; i++) {
+        let s = 0;
+        if (i < L) s = sigmaMax * Math.pow((L - i) / L, m);
+        else if (i >= nx - L) s = sigmaMax * Math.pow((i - (nx - L - 1)) / L, m);
+        this.bx[i] = Math.exp(-s * dt);
+        this.cx[i] = this.bx[i] - 1;
+      }
+      for (let j = 0; j < nz; j++) {
+        let s = 0;
+        if (j < L) s = sigmaMax * Math.pow((L - j) / L, m);
+        else if (j >= nz - L) s = sigmaMax * Math.pow((j - (nz - L - 1)) / L, m);
+        this.by[j] = Math.exp(-s * dt);
+        this.cy[j] = this.by[j] - 1;
+      }
+    }
+
+    /**
+     * Configura ε_r a partir de una función de densidad de plasma.
+     * Guarda el valor CRUDO (puede ser negativo o 0). El clamp se hace en step().
+     */
+    setEpsilonFromDensity(densityFn, omega) {
+      for (let j = 0; j < this.nz; j++) {
+        for (let i = 0; i < this.nx; i++) {
+          const idx = i + j * this.nx;
+          const omegaP = densityFn(i, j);
+          const ratio = omegaP / omega;
+          this.epsr[idx] = 1 - ratio * ratio;
+        }
+      }
+    }
+
+    setPEC(maskFn) {
+      for (let j = 0; j < this.nz; j++) {
+        for (let i = 0; i < this.nx; i++) {
+          this.pec[i + j * this.nx] = maskFn(i, j) ? 1 : 0;
+        }
+      }
+    }
+
+    reset() {
+      this.ez.fill(0);
+      this.hx.fill(0);
+      this.hy.fill(0);
+      this.psi_ez_x.fill(0);
+      this.psi_ez_y.fill(0);
+      this.psi_hx_y.fill(0);
+      this.psi_hy_x.fill(0);
+      this.time = 0;
+      this.stepCount = 0;
+    }
+
+    /**
+     * Un paso FDTD (Yee, TM).
+     * ORDEN: H → E → fuente → PEC.
+     * CLAMP de ε_r: en resonancia (ε_r = 0), el update dividiría por cero.
+     * Clampeamos a ±0.05 en el update, pero guardamos el valor crudo en epsr.
+     */
+    step(source) {
+      const { nx, nz, dt, dx, dz, ez, hx, hy, epsr, pec } = this;
+      const { bx, cx, by, cy } = this;
+      const t = this.time;
+
+      // --- 1. Update H ---
+      for (let j = 0; j < nz - 1; j++) {
+        for (let i = 0; i < nx; i++) {
+          const idx = i + j * nx;
+          const dEz_dz = (ez[idx + nx] - ez[idx]) / dz;
+          const psi = by[j] * this.psi_hx_y[idx] + cy[j] * dEz_dz;
+          this.psi_hx_y[idx] = psi;
+          hx[idx] -= dt * (dEz_dz + psi);
+        }
+      }
+      for (let j = 0; j < nz; j++) {
+        for (let i = 0; i < nx - 1; i++) {
+          const idx = i + j * nx;
+          const dEz_dx = (ez[idx + 1] - ez[idx]) / dx;
+          const psi = bx[i] * this.psi_hy_x[idx] + cx[i] * dEz_dx;
+          this.psi_hy_x[idx] = psi;
+          hy[idx] += dt * (dEz_dx + psi);
+        }
+      }
+
+      // --- 2. Update E ---
+      for (let j = 1; j < nz - 1; j++) {
+        for (let i = 1; i < nx - 1; i++) {
+          const idx = i + j * nx;
+          const dHy_dx = (hy[idx] - hy[idx - 1]) / dx;
+          const dHx_dz = (hx[idx] - hx[idx - nx]) / dz;
+
+          const psiX = bx[i] * this.psi_ez_x[idx] + cx[i] * dHy_dx;
+          const psiY = by[j] * this.psi_ez_y[idx] + cy[j] * dHx_dz;
+          this.psi_ez_x[idx] = psiX;
+          this.psi_ez_y[idx] = psiY;
+
+          let epsR = epsr[idx];
+          if (Math.abs(epsR) < 0.05) epsR = epsR >= 0 ? 0.05 : -0.05;
+
+          let val = ez[idx] + (dt / epsR) * ((dHy_dx + psiX) - (dHx_dz + psiY));
+          if (pec[idx]) val = 0;
+          ez[idx] = val;
+        }
+      }
+
+      // --- 3. Fuente ---
+      if (source) {
+        const si = Math.round(source.x);
+        const sj = Math.round(source.z);
+        if (si >= 1 && si < nx - 1 && sj >= 1 && sj < nz - 1) {
+          const idx = si + sj * nx;
+          if (source.type === 'hard') ez[idx] = source.fn(t);
+          else ez[idx] += source.fn(t);
+        }
+      }
+
+      this.time += dt;
+      this.stepCount++;
+    }
+
+    getField() { return this.ez; }
+    isCutoff(i, j) { return this.epsr[i + j * this.nx] < 0; }
+  }
+
+  // ============================================================
+  // SECCIÓN 2 — PERFILES DE DENSIDAD DE PLASMA
+  // ============================================================
+  const DENSITY_PROFILES = {
+    vacuum: () => 0,
+    slab: (i, j, nx, nz) => (i > nx * 0.35 && i < nx * 0.65) ? 0.05 : 0,
+    gradient: (i, j, nx) => 0.08 * (1 - Math.abs(2 * i / nx - 1)),
+    gaussian: (i, j, nx, nz) => {
+      const r2 = ((i - nx * 0.5) / (nx * 0.3)) ** 2
+               + ((j - nz * 0.5) / (nz * 0.4)) ** 2;
+      return 0.1 * Math.exp(-r2);
+    },
+  };
+
+  // ============================================================
+  // SECCIÓN 3 — VISUALIZADOR
+  // ============================================================
+  class PlasmaVisualizer {
+    constructor(canvas) {
+      this.canvas = canvas;
+      this.ctx = canvas.getContext('2d');
+      this.offscreen = null;
+      this.offCtx = null;
+      this.imageData = null;
+    }
+
+    draw(engine, config) {
+      const { nx, nz, epsr, pec, ez } = engine;
+
+      if (!this.offscreen || this.offscreen.width !== nx || this.offscreen.height !== nz) {
+        this.offscreen = document.createElement('canvas');
+        this.offscreen.width = nx;
+        this.offscreen.height = nz;
+        this.offCtx = this.offscreen.getContext('2d');
+        this.imageData = this.offCtx.createImageData(nx, nz);
+      }
+
+      const img = this.imageData.data;
+      let maxV = 1e-20;
+      for (let k = 0; k < ez.length; k++) {
+        const a = Math.abs(ez[k]);
+        if (a > maxV) maxV = a;
+      }
+      const inv = 1 / maxV;
+
+      for (let j = 0; j < nz; j++) {
+        for (let i = 0; i < nx; i++) {
+          const idx = i + j * nx;
+          const p = idx * 4;
+
+          if (pec[idx]) {
+            img[p] = 55; img[p + 1] = 55; img[p + 2] = 65; img[p + 3] = 255;
+            continue;
+          }
+
+          const v = ez[idx] * inv;
+          let r, g, b;
+          if (v >= 0) {
+            const s = Math.min(1, v);
+            r = 5 + 250 * s; g = 5 + 75 * s; b = 15 + 5 * s;
+          } else {
+            const s = Math.min(1, -v);
+            r = 5 + 15 * s; g = 5 + 75 * s; b = 15 + 240 * s;
+          }
+          if (epsr[idx] < 0) g = Math.min(255, g + 40);
+
+          img[p] = r; img[p + 1] = g; img[p + 2] = b; img[p + 3] = 255;
+        }
+      }
+
+      this.offCtx.putImageData(this.imageData, 0, 0);
+
+      const W = this.canvas.width, H = this.canvas.height;
+      const aspect = nx / nz, canvasAspect = W / H;
+      let dw, dh, dx0, dy0;
+      if (aspect > canvasAspect) {
+        dw = W; dh = W / aspect; dx0 = 0; dy0 = (H - dh) / 2;
+      } else {
+        dh = H; dw = H * aspect; dx0 = (W - dw) / 2; dy0 = 0;
+      }
+
+      this.ctx.fillStyle = '#04040a';
+      this.ctx.fillRect(0, 0, W, H);
+      this.ctx.imageSmoothingEnabled = true;
+      this.ctx.drawImage(this.offscreen, dx0, dy0, dw, dh);
+
+      if (config.source) {
+        const cx = dx0 + (config.source.x / nx) * dw;
+        const cy = dy0 + (config.source.z / nz) * dh;
+        this.ctx.fillStyle = '#ff4466';
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, 5, 0, 2 * Math.PI);
+        this.ctx.fill();
+        this.ctx.strokeStyle = '#fff';
+        this.ctx.lineWidth = 1.5;
+        this.ctx.stroke();
+      }
+    }
+  }
+
+  // ============================================================
+  // SECCIÓN 4 — REGISTRO DEL MÓDULO
+  // ============================================================
+  if (typeof ModuleRegistry === 'undefined') {
+    if (typeof window !== 'undefined') {
+      window.PlasmaFDTD = PlasmaFDTD;
+      window.DENSITY_PROFILES = DENSITY_PROFILES;
+    }
+    console.warn('[plasma] ModuleRegistry no encontrado. Clases expuestas en window.');
+    return;
+  }
+
+  ModuleRegistry.add('plasma', {
+    nombre: '🌡 Plasma RF (FDTD)',
+    depende: [],
+    activoPorDefecto: false,
+
+    mount(c) {
+      const bus = (typeof EventBus !== 'undefined')
+        ? new EventBus()
+        : { emit: () => {}, on: () => {}, off: () => {} };
+
+      const NX = 200, NZ = 150;
+      const engine = new PlasmaFDTD(NX, NZ, { pmlCells: 12 });
+
+      const source = {
+        x: 40, z: 75, type: 'soft',
+        omega: 2 * Math.PI * 0.05,
+        amp: 1,
+        fn(t) {
+          const ramp = 1 - Math.exp(-t / 30);
+          return source.amp * ramp * Math.sin(source.omega * t);
+        },
+      };
+
+      let profileName = 'slab';
+      let densityScale = 1.0;
+
+      function applyProfile() {
+        const baseFn = DENSITY_PROFILES[profileName];
+        engine.setEpsilonFromDensity(
+          (i, j) => densityScale * baseFn(i, j, NX, NZ),
+          source.omega
+        );
+        bus.emit('config:changed', { profileName, densityScale, omega: source.omega });
+      }
+
+      let hasPEC = false;
+      function applyPEC() {
+        engine.setPEC(hasPEC
+          ? (i, j) => i === 0 || i === NX - 1 || j === 0 || j === NZ - 1
+          : () => false
+        );
+      }
+
+      c.container.innerHTML = `
+        <h2>🌡 Plasma RF — propagación y cutoff</h2>
+        <div class="desc">
+          FDTD 2D TM con permitividad <code>ε_r = 1 − (ωp/ω)²</code>.
+          Si <code>ωp &gt; ω</code>, <code>ε_r &lt; 0</code> y la onda se refleja
+          (<strong>cutoff</strong>). <span style="color:#44ff88;">Verde</span> = cutoff.
+          <br><em>Limitación:</em> ε escalar, fuente monocromática, sin calentamiento
+          ni turbulencia. Modelo didáctico de propagación, no de fusión real.
+        </div>
+
+        <div class="grid-2" style="gap:12px;">
+          <div>
+            <label style="font-size:0.85rem;color:#aaccff;">Perfil de densidad</label>
+            <select id="plasma-profile">
+              <option value="vacuum">Vacío (sin plasma)</option>
+              <option value="slab" selected>Slab uniforme</option>
+              <option value="gradient">Gradiente lineal</option>
+              <option value="gaussian">Gaussiano (borde tokamak)</option>
+            </select>
+
+            <div class="param-group">
+              <label>Escala de densidad</label>
+              <input type="range" id="plasma-density" min="0" max="3" value="1" step="0.05">
+              <span id="plasma-density-val">1.00×</span>
+            </div>
+
+            <div class="param-group">
+              <label>Frecuencia de fuente</label>
+              <input type="range" id="plasma-freq" min="0.02" max="0.10" value="0.05" step="0.002">
+              <span id="plasma-freq-val">0.050</span>
+            </div>
+
+            <label class="module-toggle" style="margin-top:8px;width:auto;display:inline-flex;">
+              <input type="checkbox" id="plasma-pec">
+              <span>Paredes PEC en bordes</span>
+            </label>
+          </div>
+
+          <div>
+            <div class="info-line" id="plasma-cutoff-info">—</div>
+            <div class="info-line" id="plasma-state-info" style="margin-top:6px;">—</div>
+          </div>
+        </div>
+
+        <div class="sim-controls">
+          <button id="plasma-start">Iniciar</button>
+          <button id="plasma-pause" disabled>Pausar</button>
+          <button id="plasma-reset">Reiniciar</button>
+          <button id="plasma-step">Paso</button>
+        </div>
+
+        <div class="status ok" id="plasma-status">Listo. Elige perfil y pulsa Iniciar.</div>
+
+        <canvas id="plasma-canvas" width="720" height="540"></canvas>
+
+        <div class="hud">
+          <span style="color:#ff4466;">● Fuente</span>
+          <span style="color:#44ff88;">● Cutoff (ε_r &lt; 0)</span>
+          <span>t = <span id="plasma-time">0.000</span></span>
+          <span>paso = <span id="plasma-step-count">0</span></span>
+        </div>
+      `;
+
+      const canvas = c.container.querySelector('#plasma-canvas');
+      const visualizer = new PlasmaVisualizer(canvas);
+      const $ = (id) => c.container.querySelector(id);
+
+      function refreshVisuals() {
+        visualizer.draw(engine, { source });
+        $('#plasma-time').textContent = engine.time.toFixed(2);
+        $('#plasma-step-count').textContent = engine.stepCount;
+      }
+
+      function updateInfo() {
+        let cutoffCount = 0, totalPlasma = 0;
+        for (let k = 0; k < engine.epsr.length; k++) {
+          if (engine.epsr[k] !== 1) totalPlasma++;
+          if (engine.epsr[k] < 0) cutoffCount++;
+        }
+        const pct = totalPlasma > 0 ? (100 * cutoffCount / totalPlasma).toFixed(1) : '0.0';
+
+        $('#plasma-cutoff-info').innerHTML =
+          `<b>ω fuente:</b> ${source.omega.toFixed(4)} rad/u.t.<br>` +
+          `<b>f fuente:</b> ${(source.omega / (2 * Math.PI)).toFixed(4)} u.f.<br>` +
+          `<b>Celdas en cutoff:</b> ${cutoffCount} / ${totalPlasma} (${pct}%)`;
+
+        const baseFn = DENSITY_PROFILES[profileName];
+        let maxOmegaP = 0;
+        for (let j = 0; j < NZ; j++) for (let i = 0; i < NX; i++) {
+          const op = densityScale * baseFn(i, j, NX, NZ);
+          if (op > maxOmegaP) maxOmegaP = op;
+        }
+        const ratio = maxOmegaP / source.omega;
+        const state = ratio > 1 ? '⚠ Cutoff presente' : '✓ Propagación';
+        $('#plasma-state-info').innerHTML =
+          `<b>ωp máx:</b> ${maxOmegaP.toFixed(4)}<br>` +
+          `<b>ωp/ω:</b> ${ratio.toFixed(2)}<br>` +
+          `<b>Estado:</b> ${state}`;
+      }
+
+      function resetAndRefresh() {
+        engine.reset();
+        refreshVisuals();
+        updateInfo();
+      }
+
+      $('#plasma-profile').addEventListener('change', (e) => {
+        profileName = e.target.value;
+        applyProfile();
+        resetAndRefresh();
+      });
+
+      $('#plasma-density').addEventListener('input', (e) => {
+        densityScale = parseFloat(e.target.value);
+        $('#plasma-density-val').textContent = densityScale.toFixed(2) + '×';
+        applyProfile();
+        updateInfo();
+      });
+
+      $('#plasma-freq').addEventListener('input', (e) => {
+        const f = parseFloat(e.target.value);
+        source.omega = 2 * Math.PI * f;
+        $('#plasma-freq-val').textContent = f.toFixed(3);
+        applyProfile();
+        updateInfo();
+      });
+
+      $('#plasma-pec').addEventListener('change', (e) => {
+        hasPEC = e.target.checked;
+        applyPEC();
+      });
+
+      let running = false, animId = null;
+
+      function startLoop() {
+        if (running) return;
+        running = true;
+        const loop = () => {
+          if (!running) return;
+          for (let k = 0; k < 3; k++) engine.step(source);
+          refreshVisuals();
+          animId = requestAnimationFrame(loop);
+        };
+        animId = requestAnimationFrame(loop);
+      }
+
+      function stopLoop() {
+        running = false;
+        if (animId) cancelAnimationFrame(animId);
+      }
+
+      $('#plasma-start').addEventListener('click', () => {
+        startLoop();
+        $('#plasma-start').disabled = true;
+        $('#plasma-pause').disabled = false;
+        $('#plasma-step').disabled = true;
+      });
+
+      $('#plasma-pause').addEventListener('click', () => {
+        stopLoop();
+        $('#plasma-start').disabled = false;
+        $('#plasma-pause').disabled = true;
+        $('#plasma-step').disabled = false;
+      });
+
+      $('#plasma-reset').addEventListener('click', () => {
+        stopLoop();
+        resetAndRefresh();
+        $('#plasma-start').disabled = false;
+        $('#plasma-pause').disabled = true;
+        $('#plasma-step').disabled = false;
+        $('#plasma-status').textContent = 'Reiniciado.';
+      });
+
+      $('#plasma-step').addEventListener('click', () => {
+        engine.step(source);
+        refreshVisuals();
+      });
+
+      applyProfile();
+      applyPEC();
+      refreshVisuals();
+      updateInfo();
+      $('#plasma-status').textContent =
+        `Grid ${NX}×${NZ} · CPML ${engine.pmlCells} celdas · dt = ${engine.dt.toFixed(4)}`;
+
+      c._plasma = { engine, source, stopLoop, applyProfile, DENSITY_PROFILES };
+    },
+
+    unmount(c) {
+      if (c._plasma?.stopLoop) c._plasma.stopLoop();
+    },
+  });
+
+  // ============================================================
+  // SECCIÓN 5 — TESTS
+  // ============================================================
+  const PlasmaTests = {
+    run() {
+      const results = [];
+      const test = (name, fn) => {
+        try { fn(); results.push({ name, ok: true }); }
+        catch (e) { results.push({ name, ok: false, error: e.message }); }
+      };
+      const assert = (cond, msg) => { if (!cond) throw new Error(msg); };
+      const approx = (a, b, tol, msg) => {
+        if (Math.abs(a - b) > tol) throw new Error(`${msg}: ${a} vs ${b}±${tol}`);
+      };
+
+      test('CFL: dt ≤ S·dx/(c·√2)', () => {
+        const e = new PlasmaFDTD(50, 50, { courant: 0.5 });
+        assert(e.dt <= 0.5 / Math.SQRT2 + 1e-9, `dt=${e.dt}`);
+      });
+
+      test('CFL: 100 pasos con fuente no explota (vacío)', () => {
+        const e = new PlasmaFDTD(30, 30, { pmlCells: 5 });
+        e.setEpsilonFromDensity(() => 0, 2 * Math.PI * 0.05);
+        const src = { x: 15, z: 15, type: 'soft', fn: (t) => Math.sin(2 * Math.PI * 0.05 * t) };
+        for (let i = 0; i < 100; i++) e.step(src);
+        let max = 0;
+        for (const v of e.ez) max = Math.max(max, Math.abs(v));
+        assert(isFinite(max) && max < 1e6, `campo=${max}`);
+      });
+
+      test('ε_r = 1 en vacío', () => {
+        const e = new PlasmaFDTD(10, 10);
+        e.setEpsilonFromDensity(() => 0, 1);
+        for (const v of e.epsr) assert(v === 1, `ε_r=${v}`);
+      });
+
+      test('ε_r < 0 cuando ωp > ω (cutoff)', () => {
+        const e = new PlasmaFDTD(10, 10);
+        e.setEpsilonFromDensity(() => 1.5, 1.0);
+        for (const v of e.epsr) assert(v < 0, `ε_r=${v}`);
+      });
+
+      test('ε_r > 0 y < 1 cuando ωp < ω (propagación)', () => {
+        const e = new PlasmaFDTD(10, 10);
+        e.setEpsilonFromDensity(() => 0.5, 1.0);
+        for (const v of e.epsr) assert(v > 0 && v < 1, `ε_r=${v}`);
+      });
+
+      test('ε_r = 0 en resonancia (ωp = ω)', () => {
+        const e = new PlasmaFDTD(10, 10);
+        e.setEpsilonFromDensity(() => 1.0, 1.0);
+        for (const v of e.epsr) approx(v, 0, 1e-6, 'ε_r en resonancia');
+      });
+
+      test('Estabilidad: ε_r < 0 no explota en 200 pasos', () => {
+        const e = new PlasmaFDTD(50, 50, { pmlCells: 8 });
+        e.setEpsilonFromDensity(() => 1.5, 1.0);
+        const src = { x: 25, z: 25, type: 'soft', fn: (t) => Math.sin(t) };
+        for (let i = 0; i < 200; i++) e.step(src);
+        for (const v of e.ez) assert(isFinite(v), 'campo no finito con ε_r negativo');
+      });
+
+      test('Estabilidad: resonancia (ε_r = 0) no produce NaN', () => {
+        const e = new PlasmaFDTD(30, 30, { pmlCells: 5 });
+        e.setEpsilonFromDensity(() => 1.0, 1.0);
+        const src = { x: 15, z: 15, type: 'soft', fn: (t) => Math.sin(t) };
+        for (let i = 0; i < 50; i++) e.step(src);
+        for (const v of e.ez) assert(isFinite(v), 'NaN en resonancia (clamp falló)');
+      });
+
+      test('vacuum: ωp = 0 en todo el grid', () => {
+        const fn = DENSITY_PROFILES.vacuum;
+        for (let j = 0; j < 10; j++) for (let i = 0; i < 10; i++) {
+          assert(fn(i, j, 10, 10) === 0, 'vacuum no es 0');
+        }
+      });
+
+      test('slab: plasma solo en banda central', () => {
+        const fn = DENSITY_PROFILES.slab;
+        assert(fn(50, 50, 100, 100) > 0, 'centro sin plasma');
+        assert(fn(10, 50, 100, 100) === 0, 'borde izq con plasma');
+        assert(fn(90, 50, 100, 100) === 0, 'borde der con plasma');
+      });
+
+      test('gradient: 0 en bordes, máximo en centro', () => {
+        const fn = DENSITY_PROFILES.gradient;
+        assert(fn(0, 50, 100, 100) === 0, 'borde izq ≠ 0');
+        assert(fn(99, 50, 100, 100) === 0, 'borde der ≠ 0');
+        assert(fn(50, 50, 100, 100) > 0, 'centro = 0');
+      });
+
+      test('gaussian: máximo en centro, decae hacia bordes', () => {
+        const fn = DENSITY_PROFILES.gaussian;
+        const c = fn(50, 50, 100, 100);
+        const e = fn(5, 5, 100, 100);
+        assert(c > e && c > 0, `centro=${c}, borde=${e}`);
+      });
+
+      test('PEC: Ez forzado a 0 tras 50 pasos', () => {
+        const e = new PlasmaFDTD(20, 20, { pmlCells: 3 });
+        e.setEpsilonFromDensity(() => 0, 1);
+        e.setPEC((i) => i === 10);
+        const src = { x: 5, z: 10, type: 'soft', fn: (t) => Math.sin(t) };
+        for (let k = 0; k < 50; k++) e.step(src);
+        for (let j = 0; j < 20; j++) {
+          const v = e.ez[10 + j * 20];
+          assert(Math.abs(v) < 1e-9, `PEC no forzó Ez=0: ${v}`);
+        }
+      });
+
+      test('CPML: atenúa el campo en la capa absorbente (≥10×)', () => {
+        const e = new PlasmaFDTD(80, 80, { pmlCells: 15 });
+        e.setEpsilonFromDensity(() => 0, 2 * Math.PI * 0.05);
+        const src = { x: 40, z: 40, type: 'soft', fn: (t) => Math.sin(2 * Math.PI * 0.05 * t) };
+        for (let k = 0; k < 400; k++) e.step(src);
+        let sumCorner = 0, nCorner = 0, sumCenter = 0, nCenter = 0;
+        for (let j = 0; j < 80; j++) for (let i = 0; i < 80; i++) {
+          const v = Math.abs(e.ez[i + j * 80]);
+          if (i < 2 || i > 77 || j < 2 || j > 77) { sumCorner += v; nCorner++; }
+          if (i > 30 && i < 50 && j > 30 && j < 50) { sumCenter += v; nCenter++; }
+        }
+        const avgCorner = sumCorner / nCorner;
+        const avgCenter = sumCenter / nCenter;
+        assert(avgCorner < avgCenter * 0.1,
+          `CPML no absorbe: borde=${avgCorner.toFixed(4)} vs centro=${avgCenter.toFixed(4)}`);
+      });
+
+      const ok = results.filter(r => r.ok).length;
+      console.log(`\n=== PlasmaTests: ${ok}/${results.length} OK ===`);
+      results.forEach(r => {
+        if (r.ok) console.log(`✅ ${r.name}`);
+        else console.error(`❌ ${r.name}: ${r.error}`);
+      });
+      return { ok, fail: results.length - ok, results };
+    },
+  };
+
+  if (typeof window !== 'undefined') window.PlasmaTests = PlasmaTests;
+
+})();
+
+/* ============================================================================
+   BOOTSTRAP: montar el módulo
+   ============================================================================ */
+window.addEventListener('load', () => {
+  const host = document.getElementById('plasma-host');
+  const moduleDef = ModuleRegistry.get('plasma');
+
+  if (!moduleDef) {
+    console.error('[bootstrap] Módulo plasma no registrado');
+    host.innerHTML = '<p style="color:#f66">Error: módulo no registrado</p>';
+    return;
+  }
+
+  const container = document.createElement('div');
+  container.className = 'module';
+  host.appendChild(container);
+
+  const ctx = {
+    container,
+    deps: {},
+    bus: new EventBus(),
+  };
+
+  try {
+    moduleDef.mount(ctx);
+    console.log('[bootstrap] Módulo plasma montado correctamente');
+  } catch (e) {
+    console.error('[bootstrap] Error al montar:', e);
+    container.innerHTML = `<p style="color:#f66">Error: ${e.message}</p>`;
+  }
+
+  document.getElementById('run-tests-btn').addEventListener('click', () => {
+    const results = window.PlasmaTests.run();
+    const panel = document.getElementById('test-panel');
+    const list = document.getElementById('test-list');
+    panel.style.display = 'block';
+    list.innerHTML = results.results.map(r =>
+      `<div class="${r.ok ? 'test-ok' : 'test-fail'}">${r.ok ? '✅' : '❌'} ${r.name}${r.ok ? '' : ' — ' + r.error}</div>`
+    ).join('') + `<div style="margin-top:8px;color:#aaccff;">Total: ${results.ok}/${results.results.length} OK</div>`;
+    panel.scrollIntoView({ behavior: 'smooth' });
+  });
+});
+</script>
+</body>
+</html>
